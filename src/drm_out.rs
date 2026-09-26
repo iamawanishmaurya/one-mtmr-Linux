@@ -29,8 +29,10 @@ impl ControlDevice for Card {}
 pub struct DrmBackend {
     card: Card,
     mode: Mode,
-    db: DumbBuffer,
-    fb: framebuffer::Handle,
+    dbs: [DumbBuffer; 2],
+    fbs: [framebuffer::Handle; 2],
+    cur: usize,
+    bound_plane: Option<drm::control::plane::Handle>,
     master: bool,
 }
 
@@ -39,8 +41,10 @@ impl Drop for DrmBackend {
         if self.master {
             let _ = drm_ffi::auth::release_master(self.card.as_fd());
         }
-        let _ = self.card.destroy_framebuffer(self.fb);
-        // dumb buffer is freed by the kernel when the card fd closes
+        for fb in self.fbs {
+            let _ = self.card.destroy_framebuffer(fb);
+        }
+        // dumb buffers are freed by the kernel when the card fd closes
     }
 }
 
@@ -137,9 +141,15 @@ fn try_open_card(path: &Path, width: u32) -> Result<DrmBackend> {
     let db = card
         .create_dumb_buffer((width, disp_height as u32), DrmFourcc::Xrgb8888, 32)
         .map_err(|e| anyhow!("stage=buffer: create: {e}"))?;
+    let db2 = card
+        .create_dumb_buffer((width, disp_height as u32), DrmFourcc::Xrgb8888, 32)
+        .map_err(|e| anyhow!("stage=buffer: create2: {e}"))?;
     let fb = card
         .add_framebuffer(&db, 24, 32)
         .map_err(|e| anyhow!("stage=buffer: add_framebuffer: {e}"))?;
+    let fb2 = card
+        .add_framebuffer(&db2, 24, 32)
+        .map_err(|e| anyhow!("stage=buffer: add_framebuffer2: {e}"))?;
 
     // Stage: atomic commit wiring connector→crtc→plane→fb
     let mut req = AtomicModeReq::new();
@@ -217,8 +227,10 @@ fn try_open_card(path: &Path, width: u32) -> Result<DrmBackend> {
     Ok(DrmBackend {
         card,
         mode,
-        db,
-        fb,
+        dbs: [db, db2],
+        fbs: [fb, fb2],
+        cur: 0,
+        bound_plane: Some(plane),
         master: true,
     })
 }
@@ -250,22 +262,45 @@ impl DrmBackend {
     }
 
     pub fn stride_px(&self) -> usize {
-        Buffer::pitch(&self.db) as usize / 4
+        Buffer::pitch(&self.dbs[0]) as usize / 4
+    }
+
+    fn fb_prop(&self, plane: drm::control::plane::Handle, name: &str) -> Result<drm::control::property::Handle> {
+        find_prop_id(&self.card, plane, name)
     }
 
     pub fn map(&mut self) -> Result<DumbMapping<'_>> {
         self.card
-            .map_dumb_buffer(&mut self.db)
+            .map_dumb_buffer(&mut self.dbs[self.cur])
             .map_err(|e| anyhow!("map: {e}"))
     }
 
-    /// Flush the whole buffer to the panel (full-frame clip).
-    pub fn dirty(&self) -> Result<()> {
-        let (w, h) = self.mode.size();
-        let clip = ClipRect::new(0, 0, w as u16, h as u16);
+    /// Push the just-drawn back buffer to the panel.
+    ///
+    /// appletbdrm transmits a frame to the panel only when the plane's FB_ID
+    /// changes (a flip); DIRTYFB is a no-op on this driver. We therefore
+    /// double-buffer and atomically flip FB_ID on every redraw.
+    pub fn dirty(&mut self) -> Result<()> {
+        let plane = match self.bound_plane {
+            Some(p) => p,
+            None => *self
+                .card
+                .plane_handles()?
+                .first()
+                .ok_or_else(|| anyhow!("stage=plane: no planes"))?,
+        };
+        let next = 1 - self.cur;
+        let mut req = AtomicModeReq::new();
+        req.add_property(
+            plane,
+            self.fb_prop(plane, "FB_ID")?,
+            drm::control::property::Value::Framebuffer(Some(self.fbs[next])),
+        );
         self.card
-            .dirty_framebuffer(self.fb, &[clip])
-            .map_err(|e| anyhow!("dirty: {e}"))
+            .atomic_commit(AtomicCommitFlags::empty(), req)
+            .map_err(|e| anyhow!("flip: {e}"))?;
+        self.cur = next;
+        Ok(())
     }
 }
 
@@ -280,12 +315,19 @@ pub fn render_to_card(hold: bool) -> Result<()> {
         let mut map = backend.map()?;
         crate::pattern::fill_test_pattern_stride(map.as_mut(), w, h, stride);
     }
+    backend.dirty()?; // flip our filled buffer onto the panel
+    // Fill the other buffer identically so subsequent flips keep rendering
+    // the same content (and each flip re-transmits a real frame).
+    {
+        let mut map = backend.map()?;
+        crate::pattern::fill_test_pattern_stride(map.as_mut(), w, h, stride);
+    }
     backend.dirty()?;
     if !hold {
         return Ok(());
     }
     loop {
-        std::thread::sleep(std::time::Duration::from_secs(5));
+        std::thread::sleep(std::time::Duration::from_secs(2));
         {
             let mut map = backend.map()?;
             crate::pattern::fill_test_pattern_stride(map.as_mut(), w, h, stride);
