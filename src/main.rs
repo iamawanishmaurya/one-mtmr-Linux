@@ -284,11 +284,12 @@ fn live_loop(items: Vec<preset::Item>) -> Result<()> {
             Ok(touch::Ev::Up) => {
                 let n = now(t0);
                 let tap = classifier.feed(&touch::Ev::Up, n);
+                // clear the press highlight on EVERY release (drags included),
+                // otherwise a slider item stays inverted after its drag
+                let idx = highlighted.take();
+                redraw!(None);
+                backend.present(&land)?;
                 if let Some(tap) = tap {
-                    let idx = highlighted;
-                    highlighted = None;
-                    redraw!(None);
-                    backend.present(&land)?;
                     if let Some(i) = idx {
                         let trigger = match tap {
                             touch::Tap::Single => "singleTap",
