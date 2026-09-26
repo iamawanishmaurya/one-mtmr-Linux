@@ -303,17 +303,17 @@ impl DrmBackend {
     /// Blit a landscape surface (x = bar length, y = thickness) into the back
     /// buffer and page-flip it to the panel.
     /// Orientation knobs (read once at first call):
-    ///   MTMR_FLIP=1    mirror the length axis (esc ends up on the other side)
-    ///   MTMR_ROTATE=180 rotate the whole frame 180 degrees (length + thickness)
+    ///   MTMR_FLIP=1   mirror the length axis
+    ///   MTMR_VFLIP=1  mirror the thickness axis (upside-down text fix)
     pub fn present(&mut self, land: &crate::surface::Surface) -> Result<()> {
         let (w, h) = self.mode_size();
         let stride = self.stride_px();
         if self.orient.is_none() {
             let flip = std::env::var("MTMR_FLIP").map(|v| v == "1").unwrap_or(false);
-            let rot180 = std::env::var("MTMR_ROTATE").map(|v| v == "180").unwrap_or(false);
-            self.orient = Some((flip || rot180, rot180));
+            let vflip = std::env::var("MTMR_VFLIP").map(|v| v == "1").unwrap_or(false);
+            self.orient = Some((flip, vflip));
         }
-        let (flip, rot180) = self.orient.unwrap();
+        let (flip, vflip) = self.orient.unwrap();
         {
             let mut map = self.map()?;
             let buf = map.as_mut();
@@ -322,7 +322,7 @@ impl DrmBackend {
             for l in 0..h {
                 for t in 0..w {
                     let dl = if flip { h - 1 - l } else { l };
-                    let dt = if rot180 { w - 1 - t } else { t };
+                    let dt = if vflip { w - 1 - t } else { t };
                     let src = (t * land.stride + l) * 4;
                     let dst = (dl * stride + dt) * 4;
                     buf[dst] = land.buf[src];
