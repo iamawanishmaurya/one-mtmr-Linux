@@ -52,7 +52,9 @@ fn decode_image(src: &ImageSource) -> Option<DecodedImage> {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(b64.trim().replace(['\n', '\r'], ""))
         .ok()?;
-    let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+    // MTMR icons use indexed/palette PNGs — expand to RGB(A)
+    decoder.set_transformations(png::Transformations::EXPAND);
     let mut reader = decoder.read_info().ok()?;
     let mut buf = vec![0u8; reader.output_buffer_size().unwrap_or(0)];
     let info = reader.next_frame(&mut buf).ok()?;
