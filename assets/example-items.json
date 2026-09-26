@@ -1,22 +1,20 @@
-// MTMR-Linux preset — MTMR-compatible units (full bar = 1080 units)
+// MTMR-Linux daily preset v2 — widgets + sliders (MTMR units, full bar = 1080)
 [
   { "type": "escape", "title": "esc", "width": 64, "align": "left" },
-  { "type": "staticButton", "title": "Term", "width": 80, "align": "left",
-    "actions": [{ "trigger": "singleTap", "action": "command", "command": "ghostty &" }] },
-  { "type": "staticButton", "title": "Files", "width": 80, "align": "left",
-    "actions": [{ "trigger": "singleTap", "action": "command", "command": "nautilus &" }] },
 
+  { "type": "music", "width": 200, "align": "left" },
   { "type": "previous", "width": 40, "align": "center" },
-  { "type": "play", "width": 40, "align": "center",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 164 },
-                { "trigger": "longTap", "action": "keycode", "keycode": 163 }] },
+  { "type": "play", "width": 40, "align": "center" },
   { "type": "next", "width": 40, "align": "center" },
 
-  { "type": "mute", "width": 36, "align": "right" },
-  { "type": "volumeDown", "width": 36, "align": "right" },
-  { "type": "volumeUp", "width": 36, "align": "right" },
-  { "type": "brightnessDown", "width": 36, "align": "right" },
-  { "type": "brightnessUp", "width": 36, "align": "right" },
+  { "type": "cpu", "width": 60, "align": "center" },
+  { "type": "battery", "width": 70, "align": "center" },
+  { "type": "timeButton", "formatTemplate": "HH:mm", "width": 80, "align": "center" },
+
+  { "type": "brightness", "width": 100, "align": "right" },
+  { "type": "volume", "width": 100, "align": "right" },
+  { "type": "illuminationDown", "title": "-k", "width": 36, "align": "right" },
+  { "type": "illuminationUp", "title": "+k", "width": 36, "align": "right" },
   { "type": "staticButton", "title": "Lock", "width": 60, "align": "right",
     "actions": [{ "trigger": "singleTap", "action": "command", "command": "loginctl lock-session" }] },
   { "type": "exitTouchbar", "title": "X", "width": 36, "align": "right" }

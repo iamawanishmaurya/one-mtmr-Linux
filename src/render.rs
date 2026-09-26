@@ -184,7 +184,13 @@ pub fn draw_text_centered(surf: &mut Surface, r: Rect, text: &str, font: &fontdu
         glyphs.push((metrics, bitmap));
     }
     let ascent = size * 0.8;
-    let mut pen_x = r.x as f32 + ((r.w as f32 - width) / 2.0).max(0.0);
+    let mut pen_x = if width <= r.w as f32 {
+        r.x as f32 + (r.w as f32 - width) / 2.0
+    } else {
+        r.x as f32 + 4.0 // left-align + clip long text inside the rect
+    };
+    let clip_x0 = r.x as i32;
+    let clip_x1 = (r.x + r.w) as i32;
     let baseline = r.y as i32 + ((r.h as f32 + ascent) / 2.0) as i32;
     for (m, bitmap) in glyphs {
         let gx = pen_x as i32 + m.xmin as i32;
@@ -195,7 +201,7 @@ pub fn draw_text_centered(surf: &mut Surface, r: Rect, text: &str, font: &fontdu
             }
             let px = gx + (pi % m.width) as i32;
             let py = gy + (pi / m.width) as i32;
-            if px < 0 || py < 0 {
+            if px < clip_x0 || px >= clip_x1 || py < 0 {
                 continue;
             }
             // alpha blend onto background
