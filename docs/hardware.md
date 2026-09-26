@@ -41,6 +41,15 @@ Coordinate mapping: `x_px = ev_x * 2008 / 32767` along the mode's 2008 axis; tha
 - `/sys/class/backlight/intel_backlight/` — max_brightness 17777 (main display)
 - `/sys/class/leds/:white:kbd_backlight/` — keyboard backlight LED
 
+## Orientation (settled empirically 2026-09-27)
+
+The panel reads the DRM buffer with **no length flip** — landscape x=0 (esc) maps to the
+physical left end. But the thickness axis is inverted: text renders upside-down unless
+`MTMR_VFLIP=1` mirrors the 60px axis. Final mapping (in `DrmBackend::present`):
+- length: identity
+- thickness: mirrored (`MTMR_VFLIP=1`, set in mtmr-dev.service)
+(Do NOT set MTMR_FLIP / old MTMR_ROTATE — a length mirror puts esc on the right.)
+
 ## Phase 2 requirements surfaced by this spike
 
 1. On SIGTERM/exit: release DRM master and restore Touch Bar keyboard mode (`hid_appletb_kbd` governs display vs F-row mode).
