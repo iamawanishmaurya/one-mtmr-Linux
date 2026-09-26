@@ -4,14 +4,14 @@
 
 ### Rendering Core
 - [x] **REND-01**: Daemon detects the Touch Bar DRM card at runtime and displays a test bar on the physical Touch Bar display
-- [ ] **REND-02**: Daemon renders items from `~/.config/mtmr/items.json` laid out left/center/right with per-item widths
+- [x] **REND-02**: Daemon renders items from `~/.config/mtmr/items.json` laid out left/center/right with per-item widths
 - [x] **REND-03**: Daemon shows an X11 preview window when the Touch Bar DRM card is unavailable (dev/CI fallback)
 
 ### Input & System Keys
-- [ ] **INPT-01**: Tapping an item triggers its action; long-press triggers its secondary action
-- [ ] **INPT-02**: Escape button sends KEY_ESC via uinput
-- [ ] **INPT-03**: Media buttons (previous/play/next) send standard media keycodes via uinput
-- [ ] **INPT-04**: Daemon restores Touch Bar keyboard mode and releases devices cleanly on SIGTERM
+- [x] **INPT-01**: Tapping an item triggers its action; long-press triggers its secondary action
+- [x] **INPT-02**: Escape button sends KEY_ESC via uinput
+- [x] **INPT-03**: Media buttons (previous/play/next) send standard media keycodes via uinput
+- [x] **INPT-04**: Daemon restores Touch Bar keyboard mode and releases devices cleanly on SIGTERM
 
 ### Controls
 - [ ] **CTRL-01**: Volume slider adjusts system volume via wpctl/PipeWire and works as up/down keys
@@ -26,8 +26,8 @@
 - [ ] **WIDG-05**: shellScriptTitledButton runs a shell script on refreshInterval and displays its (optionally ANSI-colored) output
 
 ### Preset & Config
-- [ ] **PRE-01**: Preset loads from `~/.config/mtmr/items.json` in MTMR-compatible schema (type, title, width, align, refreshInterval, actions)
-- [ ] **PRE-02**: Unknown item types are logged and skipped without failing the whole preset
+- [x] **PRE-01**: Preset loads from `~/.config/mtmr/items.json` in MTMR-compatible schema (type, title, width, align, refreshInterval, actions)
+- [x] **PRE-02**: Unknown item types are logged and skipped without failing the whole preset
 - [ ] **PRE-03**: A sensible default preset (esc, media, volume, brightness, clock, battery) ships with the project
 
 ### Packaging & Ops
@@ -55,6 +55,15 @@
 | Requirement | Phase |
 |-------------|-------|
 | REND-01 | 1 |
+| REND-02 | 2 |
+| INPT-01 | 2 |
+| INPT-02 | 2 |
+| INPT-03 | 2 |
+| INPT-04 | 2 |
+| PRE-01 | 2 |
+| PRE-02 | 2 |
+| PRE-03 | 2 |
+| REND-03 | 1 |
 | REND-03 | 1 |
 
 ---
