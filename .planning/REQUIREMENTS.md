@@ -31,8 +31,8 @@
 - [x] **PRE-03**: A sensible default preset (esc, media, volume, brightness, clock, battery) ships with the project
 
 ### Packaging & Ops
-- [ ] **PKG-01**: Installs as a systemd user service with `Conflicts=tiny-dfr.service`
-- [ ] **PKG-02**: Daemon exits with a clear error message when no Touch Bar display is found
+- [x] **PKG-01**: Installs as a systemd user service with `Conflicts=tiny-dfr.service`
+- [x] **PKG-02**: Daemon exits with a clear error message when no Touch Bar display is found
 
 ## v2 Requirements (deferred)
 
@@ -63,6 +63,8 @@
 | PRE-01 | 2 |
 | PRE-02 | 2 |
 | PRE-03 | 2 |
+| PKG-01 | 5 |
+| PKG-02 | 5 |
 | REND-03 | 1 |
 | REND-03 | 1 |
 
