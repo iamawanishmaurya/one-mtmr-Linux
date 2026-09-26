@@ -12,10 +12,11 @@ pub fn fill_test_pattern(buf: &mut [u8], w: usize, h: usize) {
     ];
     for y in 0..h {
         for x in 0..w {
-            let (r, g, b) = if x == 0 || x == w - 1 {
+            // Bands run along the long axis (y = bar length); x is the 60px thickness.
+            let (r, g, b) = if y == 0 || y == h - 1 {
                 (255u8, 255, 255)
             } else {
-                let idx = (x * bands.len()) / w;
+                let idx = (y * bands.len()) / h;
                 let c = bands[idx];
                 (c[0], c[1], c[2])
             };
@@ -37,10 +38,10 @@ pub fn fill_test_pattern_stride(buf: &mut [u8], w: usize, h: usize, stride: usiz
     assert!(buf.len() >= stride * h * 4, "buffer too small for {stride}x{h}");
     for y in 0..h {
         for x in 0..w {
-            let (r, g, b) = if x == 0 || x == w - 1 {
+            let (r, g, b) = if y == 0 || y == h - 1 {
                 (255u8, 255, 255)
             } else {
-                let idx = (x * 8) / w;
+                let idx = (y * 8) / h;
                 let bands: [[u8; 3]; 8] = [
                     [255, 0, 0],
                     [0, 255, 0],
@@ -72,16 +73,16 @@ mod tests {
         let (w, h) = (60, 2008);
         let mut buf = vec![0u8; w * h * 4];
         fill_test_pattern(&mut buf, w, h);
-        // left marker column white
+        // first marker row (y=0) white
         assert_eq!(buf[0], 255);
         assert_eq!(buf[1], 255);
         assert_eq!(buf[2], 255);
-        // right marker column white
-        let off = ((h - 1) * w + (w - 1)) * 4;
+        // last marker row (y=h-1) white
+        let off = ((h - 1) * w) * 4;
         assert_eq!(buf[off], 255);
         assert_eq!(buf[off + 2], 255);
-        // first band is red: R=255, G=0 at x=1
-        let off = 4;
+        // first band is red at y=1
+        let off = w * 4;
         assert_eq!(buf[off + 2], 255); // R
         assert_eq!(buf[off], 0); // B
     }
