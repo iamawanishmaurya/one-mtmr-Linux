@@ -280,15 +280,10 @@ impl DrmBackend {
     /// appletbdrm transmits a frame to the panel only when the plane's FB_ID
     /// changes (a flip); DIRTYFB is a no-op on this driver. We therefore
     /// double-buffer and atomically flip FB_ID on every redraw.
-    pub fn dirty(&mut self) -> Result<()> {
-        let plane = match self.bound_plane {
-            Some(p) => p,
-            None => *self
-                .card
-                .plane_handles()?
-                .first()
-                .ok_or_else(|| anyhow!("stage=plane: no planes"))?,
-        };
+    pub fn flip(&mut self) -> Result<()> {
+        let plane = self
+            .bound_plane
+            .ok_or_else(|| anyhow!("no bound plane"))?;
         let next = 1 - self.cur;
         let mut req = AtomicModeReq::new();
         req.add_property(
@@ -302,6 +297,29 @@ impl DrmBackend {
         self.cur = next;
         Ok(())
     }
+
+    /// Blit a landscape surface (x = bar length, y = thickness) into the back
+    /// buffer and page-flip it to the panel.
+    pub fn present(&mut self, land: &crate::surface::Surface) -> Result<()> {
+        let (w, h) = self.mode_size();
+        let stride = self.stride_px();
+        {
+            let mut map = self.map()?;
+            let buf = map.as_mut();
+            // land: x = length (0..2008), y = thickness (0..60)
+            // drm:  x = thickness, y = length
+            for l in 0..h {
+                for t in 0..w {
+                    let src = (t * land.stride + l) * 4;
+                    let dst = (l * stride + t) * 4;
+                    buf[dst] = land.buf[src];
+                    buf[dst + 1] = land.buf[src + 1];
+                    buf[dst + 2] = land.buf[src + 2];
+                }
+            }
+        }
+        self.flip()
+    }
 }
 
 /// Render the given preset items to the Touch Bar via atomic page flips.
@@ -309,49 +327,21 @@ impl DrmBackend {
 pub fn render_to_card(hold: bool, items: &[crate::preset::Item]) -> Result<()> {
     let mut backend = DrmBackend::open(60)?;
     let (w, h) = backend.mode_size();
-    let stride = backend.stride_px();
-    println!("OK mode={w}x{h} stride={stride} (atomic backend)");
+    println!("OK mode={w}x{h} (atomic backend)");
     let font = crate::render::find_font()?;
-    let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).map_err(|e| anyhow!("font load: {e:?}"))?;
+    let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default())
+        .map_err(|e| anyhow!("font load: {e:?}"))?;
     let rects = crate::render::layout(items, h);
-
-    // Landscape render surface: x = bar length (0..2008), y = thickness (0..60).
     let mut land = crate::surface::Surface::new(h, w, h);
     crate::render::draw(&mut land, items, &rects, &font);
-
-    // Rotate landscape -> DRM buffer (60 wide x 2008 tall):
-    // drm(x = thickness t, y = length l) = land(x = l, y = t).
-    let mut blit = |land: &crate::surface::Surface, backend: &mut DrmBackend| -> Result<()> {
-        let mut map = backend.map()?;
-        let buf = map.as_mut();
-        // land: x = length (0..2008), y = thickness (0..60)
-        // drm: x = thickness, y = length
-        for l in 0..h {
-            for t in 0..w {
-                let src = (t * land.stride + l) * 4;
-                let dst = (l * stride + t) * 4;
-                buf[dst] = land.buf[src];
-                buf[dst + 1] = land.buf[src + 1];
-                buf[dst + 2] = land.buf[src + 2];
-            }
-        }
-        Ok(())
-    };
-    blit(&land, &mut backend)?;
-    backend.dirty()?;
-    blit(&land, &mut backend)?;
-    backend.dirty()?;
-    blit(&land, &mut backend)?;
-    backend.dirty()?;
-    blit(&land, &mut backend)?; // fill the other buffer so flips keep identical content
-    backend.dirty()?;
+    backend.present(&land)?;
+    backend.present(&land)?; // both buffers hold the same frame
     if !hold {
         return Ok(());
     }
     loop {
         std::thread::sleep(std::time::Duration::from_secs(2));
-        blit(&land, &mut backend)?;
-        backend.dirty()?;
+        backend.present(&land)?;
     }
 }
 

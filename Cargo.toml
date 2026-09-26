@@ -9,6 +9,7 @@ ctrlc = "3.5.2"
 drm = "0.15.0"
 drm-ffi = "0.9.1"
 drm-fourcc = "2.2.0"
+evdev = "0.13.2"
 fontdue = "0.9.4"
 png = "0.18.1"
 serde = { version = "1.0.229", features = ["derive"] }

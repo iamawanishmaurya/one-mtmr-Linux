@@ -3,6 +3,8 @@ mod pattern;
 mod preset;
 mod render;
 mod surface;
+mod touch;
+mod uinput;
 
 use anyhow::{bail, Result};
 use std::path::PathBuf;
@@ -58,6 +60,8 @@ fn main() -> Result<()> {
             drm_out::dump_png(out, surf.w, surf.h, &surf.to_rgb())?;
             println!("{} items; PNG written: {out} ({}x{})", items.len(), surf.w, surf.h);
         }
+        Some("--selftest-touch") => touch::selftest()?,
+        Some("--selftest-uinput") => uinput::selftest()?,
         Some(flag @ ("--drm" | "--live")) => {
             if flag == "--live" {
                 ctrlc::set_handler(|| {
@@ -71,9 +75,157 @@ fn main() -> Result<()> {
                 .map(PathBuf::from)
                 .unwrap_or_else(default_preset_path);
             let items = preset::load(&preset)?;
-            drm_out::render_to_card(flag == "--live", &items)?;
+            if flag == "--drm" {
+                drm_out::render_to_card(false, &items)?;
+            } else {
+                live_loop(items)?;
+            }
         }
-        _ => bail!("usage: mtmr [--dump-png <path> | --render-only [preset] | --drm | --live]"),
+        _ => bail!("usage: mtmr [--dump-png <path> | --render-only [preset] | --drm | --live | --selftest-touch | --selftest-uinput]"),
     }
     Ok(())
+}
+
+/// The Phase-2 live loop: render the preset, consume touch, dispatch actions.
+fn live_loop(items: Vec<preset::Item>) -> Result<()> {
+    let font = load_font()?;
+    let rects = render::layout(&items, H);
+
+    // orientation: MTMR_FLIP=1 mirrors the bar (set after visual check)
+    let flip = std::env::var("MTMR_FLIP").map(|v| v == "1").unwrap_or(false);
+    let mut backend = drm_out::DrmBackend::open(W as u32)?;
+
+    let mut land = surface::Surface::new(H, W, H);
+    let mut redraw = |land: &mut surface::Surface, hl: Option<usize>| {
+        render::draw(land, &items, &rects, &font);
+        if let Some(i) = hl {
+            land.invert_rect(rects[i]);
+        }
+    };
+    redraw(&mut land, None);
+    backend.present(&land)?;
+    backend.present(&land)?; // both buffers hold the same frame
+
+    let rx = touch::spawn_reader(H, flip)?;
+    let mut injector = uinput::KeyInjector::new().ok();
+    let mut classifier = touch::Classifier::default();
+    let mut highlighted: Option<usize> = None;
+    let mut last_flip = std::time::Instant::now();
+    let t0 = std::time::Instant::now();
+    let mut now = |t0: std::time::Instant| t0.elapsed().as_millis() as u64;
+
+    loop {
+        // long-press deadline
+        let n = now(t0);
+        if let Some(tap) = classifier.tick(n) {
+            if let Some(d) = classifier.down {
+                let _ = d; // long-press has no distinct action in the default preset yet
+            }
+            let _ = tap;
+            redraw(&mut land, None);
+            backend.present(&land)?;
+            highlighted = None;
+        }
+
+        match rx.recv_timeout(std::time::Duration::from_millis(100)) {
+            Ok(touch::Ev::Down { x }) => {
+                let n = now(t0);
+                let _ = classifier.feed(&touch::Ev::Down { x }, n);
+                let idx = rects
+                    .iter()
+                    .position(|r| x >= r.x as i64 && x < (r.x + r.w) as i64);
+                highlighted = idx;
+                redraw(&mut land, highlighted);
+                backend.present(&land)?;
+            }
+            Ok(touch::Ev::Move { x }) => {
+                let n = now(t0);
+                let _ = classifier.feed(&touch::Ev::Move { x }, n);
+                if highlighted.is_some() {
+                    if let Some(d) = classifier.down {
+                        if d.moved {
+                            highlighted = None;
+                            redraw(&mut land, None);
+                            backend.present(&land)?;
+                        }
+                    }
+                }
+            }
+            Ok(touch::Ev::Up) => {
+                let n = now(t0);
+                let tap = classifier.feed(&touch::Ev::Up, n);
+                if let Some(tap) = tap {
+                    let idx = highlighted;
+                    highlighted = None;
+                    redraw(&mut land, None);
+                    backend.present(&land)?;
+                    if let Some(i) = idx {
+                        let trigger = match tap {
+                            touch::Tap::Single => "singleTap",
+                            touch::Tap::Long => "longTap",
+                        };
+                        if dispatch(&items[i], trigger, &mut injector) == Dispatch::Exit {
+                            println!("mtmr: exitTouchbar");
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                bail!("touch reader died")
+            }
+        }
+
+        // periodic flip so the panel keeps receiving frames
+        if last_flip.elapsed() >= std::time::Duration::from_secs(2) {
+            last_flip = std::time::Instant::now();
+            redraw(&mut land, highlighted);
+            backend.present(&land)?;
+        }
+    }
+}
+
+#[derive(PartialEq)]
+enum Dispatch {
+    Handled,
+    Exit,
+}
+
+fn dispatch(
+    item: &preset::Item,
+    trigger: &str,
+    injector: &mut Option<uinput::KeyInjector>,
+) -> Dispatch {
+    if item.kind == "exitTouchbar" {
+        return Dispatch::Exit;
+    }
+    let action = item
+        .actions
+        .iter()
+        .find(|a| a.trigger == trigger || (trigger == "longTap" && a.trigger == "longTap"))
+        .or_else(|| item.actions.first());
+    let Some(action) = action else {
+        return Dispatch::Handled;
+    };
+    if let Some(k) = &action.keycode {
+        if let Some(code) = uinput::resolve_keycode(k) {
+            match injector {
+                Some(inj) => {
+                    if let Err(e) = inj.inject(code) {
+                        eprintln!("mtmr: key inject failed: {e}");
+                    }
+                }
+                None => eprintln!("mtmr: no uinput device (permission?)"),
+            }
+            return Dispatch::Handled;
+        }
+    }
+    if let Some(cmd) = &action.command {
+        match std::process::Command::new("sh").arg("-c").arg(cmd).spawn() {
+            Ok(_) => {}
+            Err(e) => eprintln!("mtmr: command failed: {e}"),
+        }
+    }
+    Dispatch::Handled
 }
