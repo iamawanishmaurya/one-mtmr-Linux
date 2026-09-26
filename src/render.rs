@@ -122,8 +122,17 @@ pub fn draw(
         } else if !it.title.is_empty() {
             draw_text_centered(surf, *r, &it.title, font);
         }
-        // subtle item outline like MTMR's ShowButtonOutlines
-        outline(surf, *r, Color(60, 60, 60));
+        // macOS Touch Bar key look: rounded outline inset vertically (MTMR's
+        // ShowButtonOutlines); esc gets the distinct darker filled key style
+        let mut body = *r;
+        body.y += 5;
+        body.h = body.h.saturating_sub(10);
+        body.x += 1;
+        body.w = body.w.saturating_sub(2);
+        if it.kind == "escape" {
+            surf.fill_rect(body, Color(28, 28, 28));
+        }
+        rounded_outline(surf, body, 9, Color(70, 70, 70));
     }
 }
 
@@ -193,6 +202,43 @@ fn fill_rect_i(surf: &mut Surface, x: i32, y: i32, w: i32, h: i32, c: Color) {
     for yy in y..y + h {
         for xx in x..x + w {
             surf.set_px(xx as usize, yy as usize, c);
+        }
+    }
+}
+
+/// macOS Touch Bar key look: rounded-rect outline inset from the item rect.
+fn rounded_outline(surf: &mut Surface, r: Rect, radius: i32, c: Color) {
+    let x0 = r.x as i32;
+    let y0 = r.y as i32;
+    let x1 = (r.x + r.w) as i32 - 1;
+    let y1 = (r.y + r.h) as i32 - 1;
+    // straight edges
+    for x in (x0 + radius)..=(x1 - radius) {
+        surf.set_px(x as usize, y0 as usize, c);
+        surf.set_px(x as usize, y1 as usize, c);
+    }
+    for y in (y0 + radius)..=(y1 - radius) {
+        surf.set_px(x0 as usize, y as usize, c);
+        surf.set_px(x1 as usize, y as usize, c);
+    }
+    // corner arcs
+    for corner in 0..4 {
+        let (ccx, ccy) = match corner {
+            0 => (x0 + radius, y0 + radius),
+            1 => (x1 - radius, y0 + radius),
+            2 => (x0 + radius, y1 - radius),
+            _ => (x1 - radius, y1 - radius),
+        };
+        for dy in 0..=radius {
+            for dx in 0..=radius {
+                let d = (dx * dx + dy * dy) as f32;
+                let rr = radius as f32;
+                if d <= rr * rr && d > (rr - 1.4) * (rr - 1.4) {
+                    let sx = if corner == 1 || corner == 3 { 1 } else { -1 };
+                    let sy = if corner == 2 || corner == 3 { 1 } else { -1 };
+                    surf.set_px((ccx + dx * sx) as usize, (ccy + dy * sy) as usize, c);
+                }
+            }
         }
     }
 }
