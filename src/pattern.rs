@@ -29,6 +29,40 @@ pub fn fill_test_pattern(buf: &mut [u8], w: usize, h: usize) {
     }
 }
 
+/// Stride-aware variant: `stride` is the row pitch in pixels (>= w).
+/// The backing allocation may be larger than stride*h*4 (page alignment), so
+/// we only require enough room and leave trailing bytes untouched.
+pub fn fill_test_pattern_stride(buf: &mut [u8], w: usize, h: usize, stride: usize) {
+    assert!(stride >= w, "stride must be >= width");
+    assert!(buf.len() >= stride * h * 4, "buffer too small for {stride}x{h}");
+    for y in 0..h {
+        for x in 0..w {
+            let (r, g, b) = if x == 0 || x == w - 1 {
+                (255u8, 255, 255)
+            } else {
+                let idx = (x * 8) / w;
+                let bands: [[u8; 3]; 8] = [
+                    [255, 0, 0],
+                    [0, 255, 0],
+                    [0, 0, 255],
+                    [255, 255, 0],
+                    [255, 0, 255],
+                    [0, 255, 255],
+                    [255, 255, 255],
+                    [255, 128, 0],
+                ];
+                let c = bands[idx];
+                (c[0], c[1], c[2])
+            };
+            let off = (y * stride + x) * 4;
+            buf[off] = b;
+            buf[off + 1] = g;
+            buf[off + 2] = r;
+            buf[off + 3] = 0;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
