@@ -33,6 +33,7 @@ pub struct DrmBackend {
     fbs: [framebuffer::Handle; 2],
     cur: usize,
     bound_plane: Option<drm::control::plane::Handle>,
+    orient: Option<(bool, bool)>,
     master: bool,
 }
 
@@ -231,6 +232,7 @@ fn try_open_card(path: &Path, width: u32) -> Result<DrmBackend> {
         fbs: [fb, fb2],
         cur: 0,
         bound_plane: Some(plane),
+        orient: None,
         master: true,
     })
 }
@@ -299,12 +301,19 @@ impl DrmBackend {
     }
 
     /// Blit a landscape surface (x = bar length, y = thickness) into the back
-    /// buffer and page-flip it to the panel. MTMR_FLIP=1 mirrors the length
-    /// axis (fixes reversed button order on this panel's orientation).
+    /// buffer and page-flip it to the panel.
+    /// Orientation knobs (read once at first call):
+    ///   MTMR_FLIP=1    mirror the length axis (esc ends up on the other side)
+    ///   MTMR_ROTATE=180 rotate the whole frame 180 degrees (length + thickness)
     pub fn present(&mut self, land: &crate::surface::Surface) -> Result<()> {
         let (w, h) = self.mode_size();
         let stride = self.stride_px();
-        let flip = std::env::var("MTMR_FLIP").map(|v| v == "1").unwrap_or(false);
+        if self.orient.is_none() {
+            let flip = std::env::var("MTMR_FLIP").map(|v| v == "1").unwrap_or(false);
+            let rot180 = std::env::var("MTMR_ROTATE").map(|v| v == "180").unwrap_or(false);
+            self.orient = Some((flip || rot180, rot180));
+        }
+        let (flip, rot180) = self.orient.unwrap();
         {
             let mut map = self.map()?;
             let buf = map.as_mut();
@@ -312,11 +321,10 @@ impl DrmBackend {
             // drm:  x = thickness, y = length
             for l in 0..h {
                 for t in 0..w {
-                    let (src, dst) = if flip {
-                        ((t * land.stride + l) * 4, ((h - 1 - l) * stride + t) * 4)
-                    } else {
-                        ((t * land.stride + l) * 4, (l * stride + t) * 4)
-                    };
+                    let dl = if flip { h - 1 - l } else { l };
+                    let dt = if rot180 { w - 1 - t } else { t };
+                    let src = (t * land.stride + l) * 4;
+                    let dst = (dl * stride + dt) * 4;
                     buf[dst] = land.buf[src];
                     buf[dst + 1] = land.buf[src + 1];
                     buf[dst + 2] = land.buf[src + 2];
