@@ -3,9 +3,9 @@
 ## v1 Requirements
 
 ### Rendering Core
-- [ ] **REND-01**: Daemon detects the Touch Bar DRM card at runtime and displays a test bar on the physical Touch Bar display
+- [x] **REND-01**: Daemon detects the Touch Bar DRM card at runtime and displays a test bar on the physical Touch Bar display
 - [ ] **REND-02**: Daemon renders items from `~/.config/mtmr/items.json` laid out left/center/right with per-item widths
-- [ ] **REND-03**: Daemon shows an X11 preview window when the Touch Bar DRM card is unavailable (dev/CI fallback)
+- [x] **REND-03**: Daemon shows an X11 preview window when the Touch Bar DRM card is unavailable (dev/CI fallback)
 
 ### Input & System Keys
 - [ ] **INPT-01**: Tapping an item triggers its action; long-press triggers its secondary action
@@ -54,7 +54,8 @@
 
 | Requirement | Phase |
 |-------------|-------|
-| (pending) | |
+| REND-01 | 1 |
+| REND-03 | 1 |
 
 ---
 *Created: 2026-09-26*

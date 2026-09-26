@@ -5,8 +5,8 @@
 ## Current Position
 
 - **Milestone:** v1 — daily-usable MTMR replacement on T2 Linux
-- **Phase:** 1 of 5 — Hardware Spike (planned, ready for `/gsd-execute-phase 1`)
-- **Status:** Phase 1 PLAN.md created 2026-09-26 (research grounded in live hardware probe: card0/USB-1, connector_id 39, mode 60x2008, appletbdrm loaded)
+- **Phase:** 1 of 5 — Hardware Spike (EXECUTED 2026-09-26; ready for `/gsd-verify-work 1` then plan Phase 2)
+- **Status:** Phase 1 SUCCESS — test pattern rendered on physical Touch Bar (`OK connector=39 mode=60x2008 fb=41`); touch device event13 mapped (ABS_X 0-32767 → 2008px); docs/hardware.md written. Discovered existing `mtmr-linux.service` daemon holding card0 — future unit must Conflicts with it. Rust crate `mtmr` scaffolded.
 
 ## Recent Context
 
