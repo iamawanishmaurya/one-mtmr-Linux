@@ -29,10 +29,18 @@ fn draw_bar(items: &[preset::Item]) -> Result<surface::Surface> {
 }
 
 fn default_preset_path() -> PathBuf {
+    // 1. $MTMR_PRESET  2. ~/.config/mtmr/items.json  3. /etc/mtmr/items.json  4. bundled default
+    if let Ok(p) = std::env::var("MTMR_PRESET") {
+        return PathBuf::from(p);
+    }
     let user = PathBuf::from(std::env::var("HOME").unwrap_or_default())
         .join(".config/mtmr/items.json");
     if user.exists() {
         return user;
+    }
+    let system = PathBuf::from("/etc/mtmr/items.json");
+    if system.exists() {
+        return system;
     }
     PathBuf::from("assets/default-items.json")
 }
