@@ -5,8 +5,8 @@
 ## Current Position
 
 - **Milestone:** v1 — daily-usable MTMR replacement on T2 Linux
-- **Phase:** 1 of 5 — Hardware Spike (not started)
-- **Status:** Project initialized, ready for `/gsd-plan-phase 1`
+- **Phase:** 1 of 5 — Hardware Spike (planned, ready for `/gsd-execute-phase 1`)
+- **Status:** Phase 1 PLAN.md created 2026-09-26 (research grounded in live hardware probe: card0/USB-1, connector_id 39, mode 60x2008, appletbdrm loaded)
 
 ## Recent Context
 
