@@ -1,11 +1,38 @@
 mod drm_out;
 mod pattern;
+mod preset;
+mod render;
+mod surface;
 
 use anyhow::{bail, Result};
 use std::path::PathBuf;
 
 const W: usize = 60;
 const H: usize = 2008;
+
+fn load_font() -> Result<fontdue::Font> {
+    let data = render::find_font()?;
+    fontdue::Font::from_bytes(data, fontdue::FontSettings::default())
+        .map_err(|e| anyhow::anyhow!("font load: {e:?}"))
+}
+
+/// Build the bar surface for a preset.
+fn draw_bar(items: &[preset::Item]) -> Result<surface::Surface> {
+    let font = load_font()?;
+    let mut surf = surface::Surface::new(W, H, W);
+    let rects = render::layout(items, H);
+    render::draw(&mut surf, items, &rects, &font);
+    Ok(surf)
+}
+
+fn default_preset_path() -> PathBuf {
+    let user = PathBuf::from(std::env::var("HOME").unwrap_or_default())
+        .join(".config/mtmr/items.json");
+    if user.exists() {
+        return user;
+    }
+    PathBuf::from("assets/default-items.json")
+}
 
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
@@ -14,13 +41,23 @@ fn main() -> Result<()> {
             let path = args
                 .next()
                 .ok_or_else(|| anyhow::anyhow!("usage: mtmr --dump-png <path>"))?;
-            let xrgb = drm_out::xrgb8888_bytes(W, H);
-            let rgb = drm_out::xrgb8888_to_rgb(&xrgb, W, H);
-            drm_out::dump_png(&path, W, H, &rgb)?;
+            let mut surf = surface::Surface::new(W, H, W);
+            pattern::fill_test_pattern_stride(&mut surf.buf, W, H, W);
+            drm_out::dump_png(&path, W, H, &surf.to_rgb())?;
             println!("PNG written: {path} ({W}x{H})");
         }
+        Some("--render-only") => {
+            let preset = args
+                .next()
+                .map(PathBuf::from)
+                .unwrap_or_else(default_preset_path);
+            let items = preset::load(&preset)?;
+            let surf = draw_bar(&items)?;
+            let out = "/tmp/mtmr-bar.png";
+            drm_out::dump_png(out, W, H, &surf.to_rgb())?;
+            println!("{} items; PNG written: {out} ({W}x{H})", items.len());
+        }
         Some(flag @ ("--drm" | "--live")) => {
-            let _ = flag;
             if flag == "--live" {
                 ctrlc::set_handler(|| {
                     println!("mtmr: exiting, releasing Touch Bar");
@@ -28,9 +65,14 @@ fn main() -> Result<()> {
                 })
                 .expect("install signal handler");
             }
-            drm_out::render_to_card(flag == "--live")?;
+            let preset = args
+                .next()
+                .map(PathBuf::from)
+                .unwrap_or_else(default_preset_path);
+            let items = preset::load(&preset)?;
+            drm_out::render_to_card(flag == "--live", &items)?;
         }
-        _ => bail!("usage: mtmr [--dump-png <path> | --drm | --live]"),
+        _ => bail!("usage: mtmr [--dump-png <path> | --render-only [preset] | --drm | --live]"),
     }
     Ok(())
 }

@@ -304,34 +304,39 @@ impl DrmBackend {
     }
 }
 
-/// Render the test pattern to the Touch Bar via atomic commit.
-/// With hold=true, re-renders every few seconds and keeps DRM master until SIGINT/SIGTERM.
-pub fn render_to_card(hold: bool) -> Result<()> {
+/// Render the given preset items to the Touch Bar via atomic page flips.
+/// With hold=true, re-renders periodically and keeps DRM master until SIGINT/SIGTERM.
+pub fn render_to_card(hold: bool, items: &[crate::preset::Item]) -> Result<()> {
     let mut backend = DrmBackend::open(60)?;
     let (w, h) = backend.mode_size();
     let stride = backend.stride_px();
     println!("OK mode={w}x{h} stride={stride} (atomic backend)");
-    {
+    let font = crate::render::find_font()?;
+    let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).map_err(|e| anyhow!("font load: {e:?}"))?;
+    let rects = crate::render::layout(items, h);
+
+    let mut draw_into = |backend: &mut DrmBackend| -> Result<()> {
         let mut map = backend.map()?;
-        crate::pattern::fill_test_pattern_stride(map.as_mut(), w, h, stride);
-    }
-    backend.dirty()?; // flip our filled buffer onto the panel
-    // Fill the other buffer identically so subsequent flips keep rendering
-    // the same content (and each flip re-transmits a real frame).
-    {
-        let mut map = backend.map()?;
-        crate::pattern::fill_test_pattern_stride(map.as_mut(), w, h, stride);
-    }
+        let mut surf = crate::surface::Surface {
+            w,
+            h,
+            stride,
+            buf: map.as_mut().to_vec(),
+        };
+        crate::render::draw(&mut surf, items, &rects, &font);
+        map.as_mut().copy_from_slice(&surf.buf);
+        Ok(())
+    };
+    draw_into(&mut backend)?;
+    backend.dirty()?;
+    draw_into(&mut backend)?; // fill the other buffer so flips keep identical content
     backend.dirty()?;
     if !hold {
         return Ok(());
     }
     loop {
         std::thread::sleep(std::time::Duration::from_secs(2));
-        {
-            let mut map = backend.map()?;
-            crate::pattern::fill_test_pattern_stride(map.as_mut(), w, h, stride);
-        }
+        draw_into(&mut backend)?;
         backend.dirty()?;
     }
 }
