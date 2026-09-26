@@ -23,11 +23,12 @@ pub fn layout(items: &[Item], bar_w: usize) -> Vec<Rect> {
         .filter(|(_, it)| it.align == Align::Right)
         .map(|(i, it)| (i, it.width))
         .collect();
+    // packing adds a gap after each item, so the segment spans sum + gaps
     let right_w: usize = right_items
         .iter()
         .map(|(_, w)| *w)
         .sum::<usize>()
-        .saturating_sub(right_items.len().saturating_sub(1) * GAP);
+        .saturating_add(right_items.len().saturating_sub(1) * GAP);
     let mut right_x = bar_w
         .saturating_sub(MARGIN)
         .saturating_sub(right_w);
