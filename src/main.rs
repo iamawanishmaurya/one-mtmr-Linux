@@ -16,10 +16,11 @@ fn load_font() -> Result<fontdue::Font> {
         .map_err(|e| anyhow::anyhow!("font load: {e:?}"))
 }
 
-/// Build the bar surface for a preset.
+/// Build the bar surface in landscape coords (2008 long x 60 thick).
+/// The DRM buffer is 60x2008 (length on the y axis); drm_out rotates on blit.
 fn draw_bar(items: &[preset::Item]) -> Result<surface::Surface> {
     let font = load_font()?;
-    let mut surf = surface::Surface::new(W, H, W);
+    let mut surf = surface::Surface::new(H, W, H);
     let rects = render::layout(items, H);
     render::draw(&mut surf, items, &rects, &font);
     Ok(surf)
@@ -52,10 +53,10 @@ fn main() -> Result<()> {
                 .map(PathBuf::from)
                 .unwrap_or_else(default_preset_path);
             let items = preset::load(&preset)?;
-            let surf = draw_bar(&items)?;
+            let surf = draw_bar(&items)?; // landscape: 2008 long x 60 thick
             let out = "/tmp/mtmr-bar.png";
-            drm_out::dump_png(out, W, H, &surf.to_rgb())?;
-            println!("{} items; PNG written: {out} ({W}x{H})", items.len());
+            drm_out::dump_png(out, surf.w, surf.h, &surf.to_rgb())?;
+            println!("{} items; PNG written: {out} ({}x{})", items.len(), surf.w, surf.h);
         }
         Some(flag @ ("--drm" | "--live")) => {
             if flag == "--live" {

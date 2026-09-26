@@ -315,28 +315,42 @@ pub fn render_to_card(hold: bool, items: &[crate::preset::Item]) -> Result<()> {
     let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).map_err(|e| anyhow!("font load: {e:?}"))?;
     let rects = crate::render::layout(items, h);
 
-    let mut draw_into = |backend: &mut DrmBackend| -> Result<()> {
+    // Landscape render surface: x = bar length (0..2008), y = thickness (0..60).
+    let mut land = crate::surface::Surface::new(h, w, h);
+    crate::render::draw(&mut land, items, &rects, &font);
+
+    // Rotate landscape -> DRM buffer (60 wide x 2008 tall):
+    // drm(x = thickness t, y = length l) = land(x = l, y = t).
+    let mut blit = |land: &crate::surface::Surface, backend: &mut DrmBackend| -> Result<()> {
         let mut map = backend.map()?;
-        let mut surf = crate::surface::Surface {
-            w,
-            h,
-            stride,
-            buf: map.as_mut().to_vec(),
-        };
-        crate::render::draw(&mut surf, items, &rects, &font);
-        map.as_mut().copy_from_slice(&surf.buf);
+        let buf = map.as_mut();
+        // land: x = length (0..2008), y = thickness (0..60)
+        // drm: x = thickness, y = length
+        for l in 0..h {
+            for t in 0..w {
+                let src = (t * land.stride + l) * 4;
+                let dst = (l * stride + t) * 4;
+                buf[dst] = land.buf[src];
+                buf[dst + 1] = land.buf[src + 1];
+                buf[dst + 2] = land.buf[src + 2];
+            }
+        }
         Ok(())
     };
-    draw_into(&mut backend)?;
+    blit(&land, &mut backend)?;
     backend.dirty()?;
-    draw_into(&mut backend)?; // fill the other buffer so flips keep identical content
+    blit(&land, &mut backend)?;
+    backend.dirty()?;
+    blit(&land, &mut backend)?;
+    backend.dirty()?;
+    blit(&land, &mut backend)?; // fill the other buffer so flips keep identical content
     backend.dirty()?;
     if !hold {
         return Ok(());
     }
     loop {
         std::thread::sleep(std::time::Duration::from_secs(2));
-        draw_into(&mut backend)?;
+        blit(&land, &mut backend)?;
         backend.dirty()?;
     }
 }
