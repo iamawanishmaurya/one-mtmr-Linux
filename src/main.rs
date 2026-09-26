@@ -1,4 +1,5 @@
 mod drm_out;
+mod icons;
 mod lenient;
 mod pattern;
 mod preset;

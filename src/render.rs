@@ -1,4 +1,5 @@
 use crate::preset::{Align, Item};
+use crate::icons;
 use crate::surface::{Color, Rect, Surface, BG, WHITE};
 use anyhow::Result;
 use std::path::PathBuf;
@@ -109,7 +110,7 @@ pub fn draw(
         match it.kind.as_str() {
             "brightness" | "volume" => {
                 let pct = slider_pcts.get(&idx).copied().unwrap_or(50);
-                draw_slider(surf, *r, pct);
+                icons::draw_slider(surf, *r, pct);
                 continue;
             }
             _ => {}
@@ -118,6 +119,8 @@ pub fn draw(
             draw_image_centered(surf, *r, img);
         } else if !it.title.is_empty() {
             draw_text_centered(surf, *r, &it.title, font);
+        } else if icons::icon_for(&it.kind, surf, *r) {
+            // built-in icon drawn
         }
         // subtle item outline like MTMR's ShowButtonOutlines
         outline(surf, *r, Color(60, 60, 60));
@@ -159,19 +162,6 @@ pub fn draw_image_centered(surf: &mut Surface, r: Rect, img: &crate::preset::Dec
             }
         }
     }
-}
-
-/// Draw a slider: dark track, white fill proportional to pct, outline.
-pub fn draw_slider(surf: &mut Surface, r: Rect, pct: u8) {
-    surf.fill_rect(r, Color(30, 30, 30));
-    let fill_w = (r.w * pct.min(100) as usize) / 100;
-    if fill_w > 0 {
-        surf.fill_rect(
-            Rect { x: r.x, y: r.y, w: fill_w, h: r.h },
-            Color(220, 220, 220),
-        );
-    }
-    outline(surf, r, Color(80, 80, 80));
 }
 
 fn outline(surf: &mut Surface, r: Rect, c: Color) {
