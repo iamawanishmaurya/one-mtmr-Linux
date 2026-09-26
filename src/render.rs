@@ -124,8 +124,13 @@ pub fn draw(
             }
             _ => {}
         }
+        // widgets (time/battery/cpu/music) are text-first: their icon only
+        // shows when there is no value to display
+        let is_widget = crate::widgets::is_widget(&it.kind);
         if let Some(img) = &it.decoded_image {
             draw_image_centered(surf, *r, img);
+        } else if is_widget && !it.title.is_empty() {
+            draw_text_centered(surf, *r, &it.title, font);
         } else if let Some(img) = icons::builtin_icon(&it.kind) {
             draw_image_centered(surf, *r, &img);
         } else if !it.title.is_empty() {
