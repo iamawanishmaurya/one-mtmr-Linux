@@ -69,7 +69,14 @@ fn main() -> Result<()> {
                 .next()
                 .map(PathBuf::from)
                 .unwrap_or_else(default_preset_path);
-            let items = preset::load(&preset)?;
+            let mut items = preset::load(&preset)?;
+            // fill live widget values so previews are realistic
+            let mut widgets = widgets::Widgets::new();
+            for it in items.iter_mut() {
+                if widgets::is_widget(&it.kind) {
+                    it.title = widgets.render(&it.kind, it.format_template.as_deref(), 4000);
+                }
+            }
             let surf = draw_bar(&items)?; // landscape: 2008 long x 60 thick
             let out = "/tmp/mtmr-bar.png";
             drm_out::dump_png(out, surf.w, surf.h, &surf.to_rgb())?;
