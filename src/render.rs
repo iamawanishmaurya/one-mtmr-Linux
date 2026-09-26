@@ -107,10 +107,19 @@ pub fn draw(
 ) {
     surf.clear(BG);
     for (idx, (it, r)) in items.iter().zip(rects.iter()).enumerate() {
+        // key body first (esc filled, others transparent) so text/icons sit on top
+        let mut body = *r;
+        body.y += 5;
+        body.h = body.h.saturating_sub(10);
+        body.x += 1;
+        body.w = body.w.saturating_sub(2);
+        if it.kind == "escape" {
+            surf.fill_rect(body, Color(28, 28, 28));
+        }
         match it.kind.as_str() {
             "brightness" | "volume" => {
                 let pct = slider_pcts.get(&idx).copied().unwrap_or(50);
-                draw_slider(surf, *r, pct);
+                draw_slider(surf, body, pct);
                 continue;
             }
             _ => {}
@@ -123,15 +132,7 @@ pub fn draw(
             draw_text_centered(surf, *r, &it.title, font);
         }
         // macOS Touch Bar key look: rounded outline inset vertically (MTMR's
-        // ShowButtonOutlines); esc gets the distinct darker filled key style
-        let mut body = *r;
-        body.y += 5;
-        body.h = body.h.saturating_sub(10);
-        body.x += 1;
-        body.w = body.w.saturating_sub(2);
-        if it.kind == "escape" {
-            surf.fill_rect(body, Color(28, 28, 28));
-        }
+        // ShowButtonOutlines)
         rounded_outline(surf, body, 9, Color(70, 70, 70));
     }
 }
