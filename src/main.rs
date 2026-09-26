@@ -19,14 +19,21 @@ fn main() -> Result<()> {
             drm_out::dump_png(&path, W, H, &rgb)?;
             println!("PNG written: {path} ({W}x{H})");
         }
-        Some("--drm") => {
+        Some(flag @ ("--drm" | "--live")) => {
             let card = args
                 .next()
                 .map(PathBuf::from)
                 .unwrap_or_else(|| PathBuf::from("/dev/dri/card0"));
-            drm_out::render_to_card(&card)?;
+            if flag == "--live" {
+                ctrlc::set_handler(|| {
+                    println!("mtmr: exiting, releasing Touch Bar");
+                    std::process::exit(0);
+                })
+                .expect("install signal handler");
+            }
+            drm_out::render_to_card(&card, flag == "--live")?;
         }
-        _ => bail!("usage: mtmr [--dump-png <path> | --drm [card]]"),
+        _ => bail!("usage: mtmr [--dump-png <path> | --drm [card] | --live [card]]"),
     }
     Ok(())
 }

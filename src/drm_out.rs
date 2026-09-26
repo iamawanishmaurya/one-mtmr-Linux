@@ -21,7 +21,8 @@ impl ControlDevice for Card {}
 
 /// Render the test pattern to the Touch Bar on the given DRM card.
 /// Targets the appletbdrm connector (Interface::USB, connector_id 39), mode 60x2008.
-pub fn render_to_card(card: &Path) -> Result<()> {
+/// With hold=true, re-renders every few seconds and keeps DRM master until SIGINT/SIGTERM.
+pub fn render_to_card(card: &Path, hold: bool) -> Result<()> {
     // Dumb-buffer mmap requires the DRM fd to be opened read/write.
     let file = std::fs::OpenOptions::new()
         .read(true)
@@ -99,7 +100,19 @@ pub fn render_to_card(card: &Path) -> Result<()> {
         .map_err(|e| anyhow!("stage=modeset: set_crtc: {e}"))?;
 
     println!("OK connector={conn_id} mode={} fb={fb:?}", mode.name().to_string_lossy());
-    Ok(())
+    if !hold {
+        let _ = drm_ffi::auth::release_master(dev.as_fd());
+        return Ok(());
+    }
+    // Live mode: keep master + re-render periodically so the bar survives
+    // driver-level resets. Exits on SIGINT/SIGTERM (handler installed by caller).
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        let mut map = dev
+            .map_dumb_buffer(&mut db)
+            .map_err(|e| anyhow!("stage=live: map: {e}"))?;
+        crate::pattern::fill_test_pattern_stride(map.as_mut(), w, h, stride_px);
+    }
 }
 
 /// Fill a test pattern into an XRGB8888 buffer with a row stride wider than the

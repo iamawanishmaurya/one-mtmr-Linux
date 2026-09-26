@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.104"
+ctrlc = "3.5.2"
 drm = "0.15.0"
 drm-ffi = "0.9.1"
 drm-fourcc = "2.2.0"
