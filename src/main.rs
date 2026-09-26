@@ -2,9 +2,11 @@ mod drm_out;
 mod pattern;
 mod preset;
 mod render;
+mod slider;
 mod surface;
 mod touch;
 mod uinput;
+mod widgets;
 
 use anyhow::{bail, Result};
 use std::path::PathBuf;
@@ -24,7 +26,7 @@ fn draw_bar(items: &[preset::Item]) -> Result<surface::Surface> {
     let font = load_font()?;
     let mut surf = surface::Surface::new(H, W, H);
     let rects = render::layout(items, H);
-    render::draw(&mut surf, items, &rects, &font);
+    render::draw(&mut surf, items, &rects, &font, &Default::default());
     Ok(surf)
 }
 
@@ -98,19 +100,40 @@ fn main() -> Result<()> {
 fn live_loop(items: Vec<preset::Item>) -> Result<()> {
     let font = load_font()?;
     let rects = render::layout(&items, H);
+    let mut mutated = items.clone();
 
     // orientation: MTMR_FLIP=1 mirrors the bar (set after visual check)
     let flip = std::env::var("MTMR_FLIP").map(|v| v == "1").unwrap_or(false);
     let mut backend = drm_out::DrmBackend::open(W as u32)?;
+    let mut widgets = widgets::Widgets::new();
+    // slider state per item index, seeded from current hardware
+    let mut slider_pcts: std::collections::HashMap<usize, u8> = std::collections::HashMap::new();
+    for (i, it) in items.iter().enumerate() {
+        let pct = match it.kind.as_str() {
+            "brightness" => slider::brightness_pct().unwrap_or(50),
+            "volume" => slider::volume_pct(),
+            _ => continue,
+        };
+        slider_pcts.insert(i, pct);
+    }
+    let mut last_volume_err: Option<String> = None;
 
     let mut land = surface::Surface::new(H, W, H);
-    let mut redraw = |land: &mut surface::Surface, hl: Option<usize>| {
-        render::draw(land, &items, &rects, &font);
+    fn redraw(
+        land: &mut surface::Surface,
+        items: &[preset::Item],
+        rects: &[surface::Rect],
+        font: &fontdue::Font,
+        slider_pcts: &std::collections::HashMap<usize, u8>,
+        hl: Option<usize>,
+    ) {
+        render::draw(land, items, rects, font, slider_pcts);
         if let Some(i) = hl {
             land.invert_rect(rects[i]);
         }
-    };
-    redraw(&mut land, None);
+    }
+    macro_rules! redraw { ($hl:expr) => { redraw(&mut land, &mutated, &rects, &font, &slider_pcts, $hl) } }
+    redraw!(None);
     backend.present(&land)?;
     backend.present(&land)?; // both buffers hold the same frame
 
@@ -130,7 +153,7 @@ fn live_loop(items: Vec<preset::Item>) -> Result<()> {
                 let _ = d; // long-press has no distinct action in the default preset yet
             }
             let _ = tap;
-            redraw(&mut land, None);
+            redraw!(None);
             backend.present(&land)?;
             highlighted = None;
         }
@@ -143,17 +166,44 @@ fn live_loop(items: Vec<preset::Item>) -> Result<()> {
                     .iter()
                     .position(|r| x >= r.x as i64 && x < (r.x + r.w) as i64);
                 highlighted = idx;
-                redraw(&mut land, highlighted);
+                redraw!(highlighted);
                 backend.present(&land)?;
             }
             Ok(touch::Ev::Move { x }) => {
                 let n = now(t0);
                 let _ = classifier.feed(&touch::Ev::Move { x }, n);
+                // slider drag: finger started inside a slider rect
+                if let Some(i) = highlighted {
+                    if items[i].kind == "brightness" || items[i].kind == "volume" {
+                        let r = rects[i];
+                        if (x as usize) >= r.x && (x as usize) < r.x + r.w {
+                            let pct = slider::pos_to_pct(r.x, r.w, x);
+                            slider_pcts.insert(i, pct);
+                            let kind = items[i].kind.clone();
+                            if kind == "brightness" {
+                                let _ = slider::set_brightness_pct(pct);
+                            } else {
+                                match slider::set_volume_pct(pct) {
+                                    Ok(()) => last_volume_err = None,
+                                    Err(e) => {
+                                        if last_volume_err.as_deref() != Some(e.to_string().as_str()) {
+                                            eprintln!("mtmr: {e}");
+                                            last_volume_err = Some(e.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                            redraw!(highlighted);
+                            backend.present(&land)?;
+                        }
+                        continue;
+                    }
+                }
                 if highlighted.is_some() {
                     if let Some(d) = classifier.down {
                         if d.moved {
                             highlighted = None;
-                            redraw(&mut land, None);
+                            redraw!(None);
                             backend.present(&land)?;
                         }
                     }
@@ -165,7 +215,7 @@ fn live_loop(items: Vec<preset::Item>) -> Result<()> {
                 if let Some(tap) = tap {
                     let idx = highlighted;
                     highlighted = None;
-                    redraw(&mut land, None);
+                    redraw!(None);
                     backend.present(&land)?;
                     if let Some(i) = idx {
                         let trigger = match tap {
@@ -185,10 +235,19 @@ fn live_loop(items: Vec<preset::Item>) -> Result<()> {
             }
         }
 
-        // periodic flip so the panel keeps receiving frames
-        if last_flip.elapsed() >= std::time::Duration::from_secs(2) {
+        // widget refresh + periodic flip
+        if last_flip.elapsed() >= std::time::Duration::from_secs(1) {
             last_flip = std::time::Instant::now();
-            redraw(&mut land, highlighted);
+            let mut changed = false;
+            for (i, it) in mutated.iter_mut().enumerate() {
+                if widgets::is_widget(&it.kind) {
+                    let val = widgets.render(&it.kind, it.format_template.as_deref(), 4000);
+                    if val != it.title {
+                        it.title = val;
+                    }
+                }
+            }
+            redraw!(highlighted);
             backend.present(&land)?;
         }
     }
@@ -223,6 +282,14 @@ fn dispatch(
 ) -> Dispatch {
     if item.kind == "exitTouchbar" {
         return Dispatch::Exit;
+    }
+    if item.kind == "illuminationUp" {
+        let _ = slider::step_illumination(1);
+        return Dispatch::Handled;
+    }
+    if item.kind == "illuminationDown" {
+        let _ = slider::step_illumination(-1);
+        return Dispatch::Handled;
     }
     if item.actions.is_empty() {
         if let Some(code) = builtin_keycode(&item.kind) {
@@ -260,6 +327,10 @@ fn dispatch(
             }
             return Dispatch::Handled;
         }
+    }
+    if item.kind == "music" && item.actions.is_empty() {
+        let _ = std::process::Command::new("playerctl").arg("play-pause").spawn();
+        return Dispatch::Handled;
     }
     if let Some(cmd) = &action.command {
         match std::process::Command::new("sh").arg("-c").arg(cmd).spawn() {

@@ -81,9 +81,24 @@ pub fn find_font() -> Result<Vec<u8>> {
 }
 
 /// Draw the bar: dark background + each item's title centered in its rect.
-pub fn draw(surf: &mut Surface, items: &[Item], rects: &[Rect], font: &fontdue::Font) {
+/// slider_pcts overrides the fill percentage for slider kinds.
+pub fn draw(
+    surf: &mut Surface,
+    items: &[Item],
+    rects: &[Rect],
+    font: &fontdue::Font,
+    slider_pcts: &std::collections::HashMap<usize, u8>,
+) {
     surf.clear(BG);
-    for (it, r) in items.iter().zip(rects.iter()) {
+    for (idx, (it, r)) in items.iter().zip(rects.iter()).enumerate() {
+        match it.kind.as_str() {
+            "brightness" | "volume" => {
+                let pct = slider_pcts.get(&idx).copied().unwrap_or(50);
+                draw_slider(surf, *r, pct);
+                continue;
+            }
+            _ => {}
+        }
         if let Some(img) = &it.decoded_image {
             draw_image_centered(surf, *r, img);
         } else if !it.title.is_empty() {
@@ -129,6 +144,19 @@ pub fn draw_image_centered(surf: &mut Surface, r: Rect, img: &crate::preset::Dec
             }
         }
     }
+}
+
+/// Draw a slider: dark track, white fill proportional to pct, outline.
+pub fn draw_slider(surf: &mut Surface, r: Rect, pct: u8) {
+    surf.fill_rect(r, Color(30, 30, 30));
+    let fill_w = (r.w * pct.min(100) as usize) / 100;
+    if fill_w > 0 {
+        surf.fill_rect(
+            Rect { x: r.x, y: r.y, w: fill_w, h: r.h },
+            Color(220, 220, 220),
+        );
+    }
+    outline(surf, r, Color(80, 80, 80));
 }
 
 fn outline(surf: &mut Surface, r: Rect, c: Color) {
@@ -206,6 +234,7 @@ mod tests {
             skipped_reason: None,
             image: None,
             decoded_image: None,
+            format_template: None,
         }
     }
 

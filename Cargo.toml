@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.104"
 base64 = "0.23.1"
+chrono = "0.4.45"
 ctrlc = "3.5.2"
 drm = "0.15.0"
 drm-ffi = "0.9.1"

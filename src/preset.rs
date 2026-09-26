@@ -24,6 +24,8 @@ pub struct Item {
     #[serde(skip)]
     pub skipped_reason: Option<String>,
     /// MTMR base64 PNG icon, decoded at load time.
+    #[serde(default, rename = "formatTemplate")]
+    pub format_template: Option<String>,
     #[serde(default)]
     pub image: Option<ImageSource>,
     #[serde(skip)]
@@ -156,6 +158,12 @@ pub const KNOWN_TYPES: &[&str] = &[
     "illuminationUp",
     "displaySleep",
     "shellScriptTitledButton",
+    "timeButton",
+    "battery",
+    "cpu",
+    "music",
+    "brightness",
+    "volume",
 ];
 
 /// MTMR presets specify widths in macOS Touch Bar units (full bar = 1080);
@@ -263,6 +271,12 @@ fn default_title(kind: &str) -> String {
         "illuminationUp" => "+k".into(),
         "illuminationDown" => "-k".into(),
         "displaySleep" => "zZ".into(),
+        "timeButton" => "".into(),
+        "battery" => "--".into(),
+        "cpu" => "--".into(),
+        "music" => "".into(),
+        "brightness" => "".into(),
+        "volume" => "".into(),
         "volumeUp" => "+".into(),
         "volumeDown" => "-".into(),
         "mute" => "M".into(),

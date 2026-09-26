@@ -338,7 +338,7 @@ pub fn render_to_card(hold: bool, items: &[crate::preset::Item]) -> Result<()> {
         .map_err(|e| anyhow!("font load: {e:?}"))?;
     let rects = crate::render::layout(items, h);
     let mut land = crate::surface::Surface::new(h, w, h);
-    crate::render::draw(&mut land, items, &rects, &font);
+    crate::render::draw(&mut land, items, &rects, &font, &Default::default());
     backend.present(&land)?;
     backend.present(&land)?; // both buffers hold the same frame
     if !hold {
