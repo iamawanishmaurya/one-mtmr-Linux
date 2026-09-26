@@ -14,16 +14,16 @@
 - [x] **INPT-04**: Daemon restores Touch Bar keyboard mode and releases devices cleanly on SIGTERM
 
 ### Controls
-- [ ] **CTRL-01**: Volume slider adjusts system volume via wpctl/PipeWire and works as up/down keys
-- [ ] **CTRL-02**: Brightness slider adjusts screen brightness via /sys/class/backlight
-- [ ] **CTRL-03**: Keyboard illumination up/down adjusts the keyboard backlight
+- [x] **CTRL-01**: Volume slider adjusts system volume via wpctl/PipeWire and works as up/down keys
+- [x] **CTRL-02**: Brightness slider adjusts screen brightness via /sys/class/backlight
+- [x] **CTRL-03**: Keyboard illumination up/down adjusts the keyboard backlight
 
 ### Widgets
-- [ ] **WIDG-01**: timeButton shows configurable-format clock, refreshed each second/minute, with long-press calendar action
-- [ ] **WIDG-02**: battery widget shows charge percentage and charging state from /sys/class/power_supply
-- [ ] **WIDG-03**: cpu widget shows CPU load sampled from /proc/stat at a configurable interval
-- [ ] **WIDG-04**: music widget shows current track and play/pause state via MPRIS (D-Bus)
-- [ ] **WIDG-05**: shellScriptTitledButton runs a shell script on refreshInterval and displays its (optionally ANSI-colored) output
+- [x] **WIDG-01**: timeButton shows configurable-format clock, refreshed each second/minute, with long-press calendar action
+- [x] **WIDG-02**: battery widget shows charge percentage and charging state from /sys/class/power_supply
+- [x] **WIDG-03**: cpu widget shows CPU load sampled from /proc/stat at a configurable interval
+- [x] **WIDG-04**: music widget shows current track and play/pause state via MPRIS (D-Bus)
+- [x] **WIDG-05**: shellScriptTitledButton runs a shell script on refreshInterval and displays its (optionally ANSI-colored) output
 
 ### Preset & Config
 - [x] **PRE-01**: Preset loads from `~/.config/mtmr/items.json` in MTMR-compatible schema (type, title, width, align, refreshInterval, actions)
