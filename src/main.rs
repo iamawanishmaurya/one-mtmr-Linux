@@ -354,6 +354,10 @@ fn dispatch(
     if item.kind == "exitTouchbar" {
         return Dispatch::Exit;
     }
+    if item.kind == "sleep" {
+        let _ = std::process::Command::new("systemctl").arg("suspend").spawn();
+        return Dispatch::Exit; // suspend kills our session; exit cleanly
+    }
     if item.kind == "illuminationUp" {
         let _ = slider::step_illumination(1);
         return Dispatch::Handled;
