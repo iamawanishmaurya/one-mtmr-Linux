@@ -5,6 +5,7 @@ After=multi-user.target
 
 [Service]
 Type=simple
+ExecStartPre=/usr/bin/mtmr --recover
 ExecStart=/usr/bin/mtmr --live
 Environment=MTMR_PRESET=/etc/mtmr/items.json
 Environment=MTMR_VFLIP=1
