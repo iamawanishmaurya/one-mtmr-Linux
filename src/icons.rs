@@ -72,7 +72,58 @@ fn builtin_map() -> &'static HashMap<&'static str, crate::preset::DecodedImage> 
     })
 }
 
+// Original MTMR assets (MIT, from Assets.xcassets) — the real Apple-era art
+const MTMR_BRIGHTNESS_UP: &[u8] = include_bytes!("../assets/icons/brightnessUp.png");
+const MTMR_BRIGHTNESS_DOWN: &[u8] = include_bytes!("../assets/icons/brightnessDown.png");
+const MTMR_CPU: &[u8] = include_bytes!("../assets/icons/cpu.png");
+const MTMR_ILL_UP: &[u8] = include_bytes!("../assets/icons/ill_up.png");
+const MTMR_ILL_DOWN: &[u8] = include_bytes!("../assets/icons/ill_down.png");
+
+/// Decode an embedded PNG, recolored white with alpha kept (MTMR ships
+/// template images; macOS recolors them to white on the bar).
+fn decode_mtmr_asset(bytes: &[u8], size: u32) -> Option<crate::preset::DecodedImage> {
+    let decoder = png_decoder(bytes)?;
+    let mut reader = decoder.read_info().ok()?;
+    let mut buf = vec![0u8; reader.output_buffer_size().unwrap_or(0)];
+    let info = reader.next_frame(&mut buf).ok()?;
+    let mut rgba = Vec::with_capacity(info.width as usize * info.height as usize * 4);
+    match info.color_type {
+        png::ColorType::Rgba => {
+            for px in buf[..info.buffer_size()].chunks_exact(4) {
+                rgba.extend_from_slice(&[255, 255, 255, px[3]]);
+            }
+        }
+        png::ColorType::Rgb => {
+            for px in buf[..info.buffer_size()].chunks_exact(3) {
+                rgba.extend_from_slice(&[255, 255, 255, 255]);
+            }
+        }
+        _ => return None,
+    }
+    let _ = size;
+    Some(crate::preset::DecodedImage {
+        w: info.width as usize,
+        h: info.height as usize,
+        rgba,
+    })
+}
+
+fn png_decoder(bytes: &[u8]) -> Option<png::Decoder<std::io::Cursor<&[u8]>>> {
+    let mut d = png::Decoder::new(std::io::Cursor::new(bytes));
+    d.set_transformations(png::Transformations::EXPAND);
+    Some(d)
+}
+
 /// Look up the anti-aliased built-in icon for a type, if any.
+/// Prefers the original MTMR/Apple-era assets where they exist.
 pub fn builtin_icon(kind: &str) -> Option<crate::preset::DecodedImage> {
-    builtin_map().get(kind).cloned()
+    let asset = match kind {
+        "brightnessUp" => MTMR_BRIGHTNESS_UP,
+        "brightnessDown" => MTMR_BRIGHTNESS_DOWN,
+        "cpu" => MTMR_CPU,
+        "illuminationUp" => MTMR_ILL_UP,
+        "illuminationDown" => MTMR_ILL_DOWN,
+        _ => return builtin_map().get(kind).cloned(),
+    };
+    decode_mtmr_asset(asset, 44).or_else(|| builtin_map().get(kind).cloned())
 }
