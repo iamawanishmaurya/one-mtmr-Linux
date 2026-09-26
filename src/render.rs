@@ -14,8 +14,23 @@ pub fn layout(items: &[Item], bar_w: usize) -> Vec<Rect> {
 
     // Widths within each segment; center cluster is centered as a whole.
     let mut left_x = MARGIN;
-    let mut right_x = bar_w.saturating_sub(MARGIN);
     let center_count = items.iter().filter(|it| it.align == Align::Center).count();
+    // Right segment: keep config order = visual order (left→right), with the
+    // last right item flush against the right margin.
+    let right_items: Vec<(usize, usize)> = items
+        .iter()
+        .enumerate()
+        .filter(|(_, it)| it.align == Align::Right)
+        .map(|(i, it)| (i, it.width))
+        .collect();
+    let right_w: usize = right_items
+        .iter()
+        .map(|(_, w)| *w)
+        .sum::<usize>()
+        .saturating_sub(right_items.len().saturating_sub(1) * GAP);
+    let mut right_x = bar_w
+        .saturating_sub(MARGIN)
+        .saturating_sub(right_w);
     // Cluster width includes the internal gaps added during packing.
     let center_w = items
         .iter()
@@ -38,9 +53,8 @@ pub fn layout(items: &[Item], bar_w: usize) -> Vec<Rect> {
                 center_x += w + GAP;
             }
             Align::Right => {
-                right_x = right_x.saturating_sub(w);
                 rects[i] = Rect { x: right_x, y: 0, w, h };
-                right_x = right_x.saturating_sub(GAP);
+                right_x += w + GAP;
             }
         }
     }
