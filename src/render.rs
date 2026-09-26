@@ -110,17 +110,17 @@ pub fn draw(
         match it.kind.as_str() {
             "brightness" | "volume" => {
                 let pct = slider_pcts.get(&idx).copied().unwrap_or(50);
-                icons::draw_slider(surf, *r, pct);
+                draw_slider(surf, *r, pct);
                 continue;
             }
             _ => {}
         }
         if let Some(img) = &it.decoded_image {
             draw_image_centered(surf, *r, img);
+        } else if let Some(img) = icons::builtin_icon(&it.kind) {
+            draw_image_centered(surf, *r, &img);
         } else if !it.title.is_empty() {
             draw_text_centered(surf, *r, &it.title, font);
-        } else if icons::icon_for(&it.kind, surf, *r) {
-            // built-in icon drawn
         }
         // subtle item outline like MTMR's ShowButtonOutlines
         outline(surf, *r, Color(60, 60, 60));
@@ -160,6 +160,39 @@ pub fn draw_image_centered(surf: &mut Surface, r: Rect, img: &crate::preset::Dec
                 let fg = img.rgba[off + (2 - c)] as u32; // RGBA -> BGR
                 surf.buf[dst + c] = ((fg * a + bg * (255 - a)) / 255) as u8;
             }
+        }
+    }
+}
+
+/// MTMR-style slim slider: thin track line + white round thumb at the value.
+pub fn draw_slider(surf: &mut Surface, r: Rect, pct: u8) {
+    let cy = r.y as i32 + r.h as i32 / 2;
+    let track_h = 6;
+    let x0 = r.x as i32 + 2;
+    let w = r.w as i32 - 4;
+    fill_rect_i(surf, x0, cy - track_h / 2, w, track_h, Color(90, 90, 90));
+    let fill_w = (w as u32 * pct.min(100) as u32 / 100) as i32;
+    if fill_w > 0 {
+        fill_rect_i(surf, x0, cy - track_h / 2, fill_w, track_h, Color(70, 130, 250));
+    }
+    let kx = (x0 + fill_w).clamp(x0 + 8, x0 + w - 8);
+    fill_circle(surf, kx, cy, 13, WHITE);
+}
+
+fn fill_circle(surf: &mut Surface, cx: i32, cy: i32, r: i32, c: Color) {
+    for dy in -r..=r {
+        for dx in -r..=r {
+            if dx * dx + dy * dy <= r * r {
+                surf.set_px((cx + dx) as usize, (cy + dy) as usize, c);
+            }
+        }
+    }
+}
+
+fn fill_rect_i(surf: &mut Surface, x: i32, y: i32, w: i32, h: i32, c: Color) {
+    for yy in y..y + h {
+        for xx in x..x + w {
+            surf.set_px(xx as usize, yy as usize, c);
         }
     }
 }
