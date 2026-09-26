@@ -20,10 +20,7 @@ fn main() -> Result<()> {
             println!("PNG written: {path} ({W}x{H})");
         }
         Some(flag @ ("--drm" | "--live")) => {
-            let card = args
-                .next()
-                .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("/dev/dri/card0"));
+            let _ = flag;
             if flag == "--live" {
                 ctrlc::set_handler(|| {
                     println!("mtmr: exiting, releasing Touch Bar");
@@ -31,9 +28,9 @@ fn main() -> Result<()> {
                 })
                 .expect("install signal handler");
             }
-            drm_out::render_to_card(&card, flag == "--live")?;
+            drm_out::render_to_card(flag == "--live")?;
         }
-        _ => bail!("usage: mtmr [--dump-png <path> | --drm [card] | --live [card]]"),
+        _ => bail!("usage: mtmr [--dump-png <path> | --drm | --live]"),
     }
     Ok(())
 }
