@@ -125,6 +125,7 @@ pub fn spawn_reader(bar_len: usize, flip: bool) -> Result<Receiver<Ev>> {
             }
         };
         let mut last_x: i64 = 0;
+        let mut down = false;
         loop {
             let evs = match dev.fetch_events() {
                 Ok(e) => e,
@@ -136,12 +137,17 @@ pub fn spawn_reader(bar_len: usize, flip: bool) -> Result<Receiver<Ev>> {
                     EventType::ABSOLUTE if ev.code() == 0 => {
                         // ABS_X — value arrives only while a finger is down
                         last_x = scale(ev.value());
+                        if down {
+                            let _ = tx.send(Ev::Move { x: last_x });
+                        }
                     }
                     EventType::KEY if ev.code() == 330 => match ev.value() {
                         1 => {
+                            down = true;
                             let _ = tx.send(Ev::Down { x: last_x });
                         }
                         _ => {
+                            down = false;
                             let _ = tx.send(Ev::Up);
                         }
                     },
