@@ -102,7 +102,14 @@ Ordered roughly by the rendering pipeline: kernel → DRM → daemon → touch �
   Also: sliders must look like macOS sliders (slim track + round thumb),
   not full-height rectangles.
 
-### 18. Old-project lessons still apply
+### 18. react-drm brightness sliders no-op when brightnessctl is missing
+- Both sliders (display + keyboard) read/write through `brightnessctl`; if the
+  package is absent, reads silently return 0.5 and writes are swallowed
+  (execFile errors ignored) — sliders render but do nothing.
+- Fix: `sudo pacman -S brightnessctl`. Also note the keyboard LED is
+  `:white:kbd_backlight` (leading colon) and is auto-detected correctly.
+
+### 19. Old-project lessons still apply
 - TOML `[Timings]`-style header re-scoping (we use JSON, so safe), battery
   `capacity` over `charge_now` (drift), `pactl`/`wpctl` need
   `XDG_RUNTIME_DIR` when running as root (auto-detected in slider.rs),
