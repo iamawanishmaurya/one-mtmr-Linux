@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::path::Path;
 
 /// Phase-2 subset of the MTMR items.json schema.
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Item {
     #[serde(rename = "type")]
@@ -23,6 +23,55 @@ pub struct Item {
     /// Unknown-type items are skipped but keep their raw type for logging.
     #[serde(skip)]
     pub skipped_reason: Option<String>,
+    /// MTMR base64 PNG icon, decoded at load time.
+    #[serde(default)]
+    pub image: Option<ImageSource>,
+    #[serde(skip)]
+    pub decoded_image: Option<DecodedImage>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ImageSource {
+    #[serde(default)]
+    pub base64: Option<String>,
+    #[serde(default)]
+    pub file_path: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DecodedImage {
+    pub w: usize,
+    pub h: usize,
+    pub rgba: Vec<u8>,
+}
+
+/// Decode an item's base64 PNG into RGBA pixels.
+fn decode_image(src: &ImageSource) -> Option<DecodedImage> {
+    use base64::Engine;
+    let b64 = src.base64.as_ref()?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(b64.trim().replace(['\n', '\r'], ""))
+        .ok()?;
+    let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+    let mut reader = decoder.read_info().ok()?;
+    let mut buf = vec![0u8; reader.output_buffer_size().unwrap_or(0)];
+    let info = reader.next_frame(&mut buf).ok()?;
+    let rgba = match info.color_type {
+        png::ColorType::Rgba => buf[..info.buffer_size()].to_vec(),
+        png::ColorType::Rgb => {
+            let mut v = Vec::with_capacity(info.width as usize * info.height as usize * 4);
+            for px in buf[..info.buffer_size()].chunks_exact(3) {
+                v.extend_from_slice(&[px[0], px[1], px[2], 255]);
+            }
+            v
+        }
+        _ => return None,
+    };
+    Some(DecodedImage {
+        w: info.width as usize,
+        h: info.height as usize,
+        rgba,
+    })
 }
 
 fn default_width() -> usize {
@@ -182,6 +231,16 @@ pub fn load(path: &Path) -> Result<Vec<Item>> {
                     it.title = default_title(&it.kind);
                 }
                 it.width = width_px(it.width);
+                if let Some(src) = it.image.take() {
+                    it.decoded_image = decode_image(&src);
+                    if it.decoded_image.is_none() && src.base64.is_some() {
+                        eprintln!("mtmr: failed to decode icon for '{}' item", it.kind);
+                    }
+                    // an icon-only item with no title: don't invent text over the icon
+                    if it.decoded_image.is_some() && it.title.is_empty() {
+                        it.title = String::new();
+                    }
+                }
                 out.push(it);
             }
             Err(e) => eprintln!("mtmr: skipping malformed '{kind}' item: {e}"),

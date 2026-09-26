@@ -84,12 +84,50 @@ pub fn find_font() -> Result<Vec<u8>> {
 pub fn draw(surf: &mut Surface, items: &[Item], rects: &[Rect], font: &fontdue::Font) {
     surf.clear(BG);
     for (it, r) in items.iter().zip(rects.iter()) {
-        if it.title.is_empty() {
-            continue;
+        if let Some(img) = &it.decoded_image {
+            draw_image_centered(surf, *r, img);
+        } else if !it.title.is_empty() {
+            draw_text_centered(surf, *r, &it.title, font);
         }
-        draw_text_centered(surf, *r, &it.title, font);
         // subtle item outline like MTMR's ShowButtonOutlines
         outline(surf, *r, Color(60, 60, 60));
+    }
+}
+
+/// Blit an RGBA image centered in the rect, scaled to fit 44px height.
+pub fn draw_image_centered(surf: &mut Surface, r: Rect, img: &crate::preset::DecodedImage) {
+    if img.w == 0 || img.h == 0 || r.w < 4 || r.h < 4 {
+        return;
+    }
+    let max_h = (r.h - 8).min(44);
+    let scale = (max_h as f32 / img.h as f32).min(r.w.saturating_sub(8) as f32 / img.w as f32);
+    let (dw, dh) = ((img.w as f32 * scale) as usize, (img.h as f32 * scale) as usize);
+    if dw == 0 || dh == 0 {
+        return;
+    }
+    let x0 = r.x + (r.w.saturating_sub(dw)) / 2;
+    let y0 = r.y + (r.h.saturating_sub(dh)) / 2;
+    for dy in 0..dh {
+        for dx in 0..dw {
+            let sx = dx * img.w / dw;
+            let sy = dy * img.h / dh;
+            let off = (sy * img.w + sx) * 4;
+            let a = img.rgba[off + 3] as u32;
+            if a == 0 {
+                continue;
+            }
+            let px = x0 + dx;
+            let py = y0 + dy;
+            if px >= surf.w || py >= surf.h {
+                continue;
+            }
+            let dst = (py * surf.stride + px) * 4;
+            for c in 0..3 {
+                let bg = surf.buf[dst + c] as u32;
+                let fg = img.rgba[off + (2 - c)] as u32; // RGBA -> BGR
+                surf.buf[dst + c] = ((fg * a + bg * (255 - a)) / 255) as u8;
+            }
+        }
     }
 }
 
@@ -166,6 +204,8 @@ mod tests {
             refresh_interval: None,
             source: None,
             skipped_reason: None,
+            image: None,
+            decoded_image: None,
         }
     }
 
