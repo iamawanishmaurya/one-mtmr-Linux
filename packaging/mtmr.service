@@ -1,0 +1,20 @@
+[Unit]
+Description=MTMR-Linux — Touch Bar daemon (MTMR presets for t2linux)
+Conflicts=tiny-dfr.service mtmr-linux.service
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/mtmr --live
+Environment=MTMR_PRESET=/etc/mtmr/items.json
+Environment=MTMR_VFLIP=1
+WorkingDirectory=/etc/mtmr
+Restart=always
+RestartSec=3
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+ReadWritePaths=/sys/class/backlight /sys/class/leds
+
+[Install]
+WantedBy=multi-user.target

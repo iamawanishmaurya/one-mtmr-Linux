@@ -71,12 +71,8 @@ fn try_open_card(path: &Path, width: u32) -> Result<DrmBackend> {
         .open(path)
         .with_context(|| format!("open {} (rw)", path.display()))?;
     let card = Card(file);
-    card.set_client_capability(ClientCapability::UniversalPlanes, true)?;
-    card.set_client_capability(ClientCapability::Atomic, true)?;
-    drm_ffi::auth::acquire_master(card.as_fd())
-        .map_err(|e| anyhow!("acquire DRM master: {e}"))?;
-
-    // Stage: find the Touch Bar connector (USB interface on T2) and its mode
+    // Identify the Touch Bar connector BEFORE acquiring master so cards we
+    // can't own (e.g. the main GPU held by the compositor) are skipped cleanly.
     let res = card
         .resource_handles()
         .map_err(|e| anyhow!("stage=connector: resource_handles: {e}"))?;
@@ -91,7 +87,11 @@ fn try_open_card(path: &Path, width: u32) -> Result<DrmBackend> {
         }
     }
     let con_info =
-        con_info.ok_or_else(|| anyhow!("stage=connector: no connected USB (Touch Bar) connector"))?;
+        con_info.ok_or_else(|| anyhow!("no connected USB (Touch Bar) connector on this card"))?;
+    card.set_client_capability(ClientCapability::UniversalPlanes, true)?;
+    card.set_client_capability(ClientCapability::Atomic, true)?;
+    drm_ffi::auth::acquire_master(card.as_fd())
+        .map_err(|e| anyhow!("acquire DRM master: {e}"))?;
     let mode: Mode = *con_info
         .modes()
         .first()

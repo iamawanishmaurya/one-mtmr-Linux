@@ -45,6 +45,10 @@ fn default_preset_path() -> PathBuf {
     if system.exists() {
         return system;
     }
+    let shared = PathBuf::from("/usr/share/mtmr/items.json");
+    if shared.exists() {
+        return shared;
+    }
     PathBuf::from("assets/default-items.json")
 }
 
@@ -70,6 +74,17 @@ fn main() -> Result<()> {
             let out = "/tmp/mtmr-bar.png";
             drm_out::dump_png(out, surf.w, surf.h, &surf.to_rgb())?;
             println!("{} items; PNG written: {out} ({}x{})", items.len(), surf.w, surf.h);
+        }
+        Some("--recover") => {
+            // Rebind appletbdrm to re-init a stale display session (panel frozen
+            // on an old frame despite successful commits). Requires root.
+            use anyhow::Context as _;
+            let unbind = "/sys/bus/usb/drivers/appletbdrm/unbind";
+            let bind = "/sys/bus/usb/drivers/appletbdrm/bind";
+            std::fs::write(unbind, "5-6:2.1").context("unbind appletbdrm")?;
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            std::fs::write(bind, "5-6:2.1").context("bind appletbdrm")?;
+            println!("mtmr: appletbdrm rebound — display session re-initialized");
         }
         Some("--lint") => {
             let path = args

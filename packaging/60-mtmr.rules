@@ -1,0 +1,6 @@
+# MTMR-Linux device permissions
+# virtual uinput keyboard — used when running mtmr as a non-root user/service
+KERNEL=="uinput", MODE="0660", GROUP="input", TAG+="uaccess"
+# sysfs brightness + keyboard backlight writable by group video (for user-mode experiments)
+ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/sh -c 'chgrp video /sys/class/backlight/%k/brightness /sys/class/backlight/%k/bl_power 2>/dev/null; chmod g+w /sys/class/backlight/%k/brightness /sys/class/backlight/%k/bl_power 2>/dev/null'"
+ACTION=="add", SUBSYSTEM=="leds", RUN+="/bin/sh -c 'chgrp video /sys/class/leds/%k/brightness 2>/dev/null; chmod g+w /sys/class/leds/%k/brightness 2>/dev/null'"
