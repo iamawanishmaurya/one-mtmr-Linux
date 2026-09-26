@@ -1,11 +1,60 @@
 [
-  { "type": "escape", "title": "esc", "width": 100, "align": "left",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 53 }] },
-  { "type": "previous", "width": 100, "align": "center",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 165 }] },
-  { "type": "play", "width": 100, "align": "center",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 164 }] },
-  { "type": "next", "width": 100, "align": "center",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 163 }] },
-  { "type": "exitTouchbar", "title": "✕", "width": 80, "align": "right" }
+  {
+    "type": "escape",
+    "title": "esc",
+    "width": 100,
+    "align": "left",
+    "actions": [
+      {
+        "trigger": "singleTap",
+        "action": "keycode",
+        "keycode": 53
+      }
+    ]
+  },
+  {
+    "type": "previous",
+    "width": 100,
+    "align": "center",
+    "actions": [
+      {
+        "trigger": "singleTap",
+        "action": "keycode",
+        "keycode": 165
+      }
+    ],
+    "title": "|<"
+  },
+  {
+    "type": "play",
+    "width": 100,
+    "align": "center",
+    "actions": [
+      {
+        "trigger": "singleTap",
+        "action": "keycode",
+        "keycode": 164
+      }
+    ],
+    "title": ">||"
+  },
+  {
+    "type": "next",
+    "width": 100,
+    "align": "center",
+    "actions": [
+      {
+        "trigger": "singleTap",
+        "action": "keycode",
+        "keycode": 163
+      }
+    ],
+    "title": ">>"
+  },
+  {
+    "type": "exitTouchbar",
+    "title": "X",
+    "width": 80,
+    "align": "right"
+  }
 ]

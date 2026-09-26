@@ -173,8 +173,8 @@ mod tests {
     fn left_center_right_layout() {
         let items = vec![
             item("escape", "esc", 100, Align::Left),
-            item("play", "⏯", 100, Align::Center),
-            item("exitTouchbar", "✕", 100, Align::Right),
+            item("play", ">||", 100, Align::Center),
+            item("exitTouchbar", "X", 100, Align::Right),
         ];
         let rects = layout(&items, 2008);
         assert_eq!(rects[0].x, 8); // left margin

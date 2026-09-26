@@ -138,15 +138,15 @@ pub fn load(path: &Path) -> Result<Vec<Item>> {
 fn default_title(kind: &str) -> String {
     match kind {
         "escape" => "esc".into(),
-        "previous" => "⏮".into(),
-        "play" => "⏯".into(),
-        "next" => "⏭".into(),
-        "volumeUp" => "🔊".into(),
-        "volumeDown" => "🔉".into(),
-        "mute" => "🔇".into(),
-        "brightnessUp" => "☀".into(),
-        "brightnessDown" => " ☀".into(),
-        "exitTouchbar" => "✕".into(),
+        "previous" => "|<".into(),
+        "play" => ">||".into(),
+        "next" => ">>".into(),
+        "volumeUp" => "+".into(),
+        "volumeDown" => "-".into(),
+        "mute" => "M".into(),
+        "brightnessUp" => "+b".into(),
+        "brightnessDown" => "-b".into(),
+        "exitTouchbar" => "X".into(),
         other => other.into(),
     }
 }
