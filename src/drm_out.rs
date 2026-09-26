@@ -96,14 +96,42 @@ fn try_open_card(path: &Path, width: u32) -> Result<DrmBackend> {
         bail!("stage=mode: {disp_height} tall mode does not look like a touchbar");
     }
 
-    // Stage: crtc + plane
+    // Stage: crtc + plane selection.
+    // A previous daemon may have left its framebuffer bound to a plane on this
+    // CRTC; if we pick the wrong (overlay) plane our output renders UNDER it.
+    // Choose the plane currently bound to our CRTC with a live FB, and mark all
+    // other planes bound to this CRTC for disabling in the same commit.
     let crtc_info = card
         .get_crtc(*res.crtcs().first().ok_or_else(|| anyhow!("stage=crtc: none"))?)
         .map_err(|e| anyhow!("stage=crtc: {e}"))?;
-    let plane = *card
-        .plane_handles()?
-        .first()
-        .ok_or_else(|| anyhow!("stage=plane: no planes"))?;
+    let crtc = crtc_info.handle();
+    let planes = card
+        .plane_handles()
+        .map_err(|e| anyhow!("stage=plane: {e}"))?;
+    let mut bound_planes: Vec<drm::control::plane::Handle> = Vec::new();
+    for &pl in planes.iter() {
+        let props = card.get_properties(pl)?;
+        let (handles, values) = props.as_props_and_values();
+        let mut on_our_crtc = false;
+        for (h, v) in handles.iter().zip(values.iter()) {
+            if card.get_property(*h)?.name().to_str()? != "CRTC_ID" {
+                continue;
+            }
+            // as_props_and_values yields raw u64 values; CRTC_ID raw value == handle id
+            let crtc_raw: u32 = crtc.into();
+            if *v == crtc_raw as u64 {
+                on_our_crtc = true;
+            }
+        }
+        if on_our_crtc {
+            bound_planes.push(pl);
+        }
+    }
+    let plane = match bound_planes.first() {
+        Some(p) => *p,
+        None => *planes.first().ok_or_else(|| anyhow!("stage=plane: no planes"))?,
+    };
+    let planes_to_disable: Vec<_> = bound_planes.iter().filter(|p| **p != plane).collect();
 
     // Stage: dumb buffer + framebuffer
     let db = card
@@ -167,6 +195,21 @@ fn try_open_card(path: &Path, width: u32) -> Result<DrmBackend> {
         find_prop_id(&card, plane, "CRTC_H")?,
         drm::control::property::Value::UnsignedRange(mode.size().1 as u64),
     );
+
+    // Disable any competing planes on this CRTC so ours is the visible one
+    for &p in &planes_to_disable {
+        let ph = *p;
+        req.add_property(
+            ph,
+            find_prop_id(&card, ph, "FB_ID")?,
+            drm::control::property::Value::Framebuffer(None),
+        );
+        req.add_property(
+            ph,
+            find_prop_id(&card, ph, "CRTC_ID")?,
+            drm::control::property::Value::CRTC(None),
+        );
+    }
 
     card.atomic_commit(AtomicCommitFlags::ALLOW_MODESET, req)
         .map_err(|e| anyhow!("stage=atomic: commit: {e}"))?;
