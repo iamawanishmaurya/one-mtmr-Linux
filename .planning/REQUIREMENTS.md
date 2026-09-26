@@ -1,0 +1,60 @@
+# v1 Requirements — MTMR-Linux
+
+## v1 Requirements
+
+### Rendering Core
+- [ ] **REND-01**: Daemon detects the Touch Bar DRM card at runtime and displays a test bar on the physical Touch Bar display
+- [ ] **REND-02**: Daemon renders items from `~/.config/mtmr/items.json` laid out left/center/right with per-item widths
+- [ ] **REND-03**: Daemon shows an X11 preview window when the Touch Bar DRM card is unavailable (dev/CI fallback)
+
+### Input & System Keys
+- [ ] **INPT-01**: Tapping an item triggers its action; long-press triggers its secondary action
+- [ ] **INPT-02**: Escape button sends KEY_ESC via uinput
+- [ ] **INPT-03**: Media buttons (previous/play/next) send standard media keycodes via uinput
+- [ ] **INPT-04**: Daemon restores Touch Bar keyboard mode and releases devices cleanly on SIGTERM
+
+### Controls
+- [ ] **CTRL-01**: Volume slider adjusts system volume via wpctl/PipeWire and works as up/down keys
+- [ ] **CTRL-02**: Brightness slider adjusts screen brightness via /sys/class/backlight
+- [ ] **CTRL-03**: Keyboard illumination up/down adjusts the keyboard backlight
+
+### Widgets
+- [ ] **WIDG-01**: timeButton shows configurable-format clock, refreshed each second/minute, with long-press calendar action
+- [ ] **WIDG-02**: battery widget shows charge percentage and charging state from /sys/class/power_supply
+- [ ] **WIDG-03**: cpu widget shows CPU load sampled from /proc/stat at a configurable interval
+- [ ] **WIDG-04**: music widget shows current track and play/pause state via MPRIS (D-Bus)
+- [ ] **WIDG-05**: shellScriptTitledButton runs a shell script on refreshInterval and displays its (optionally ANSI-colored) output
+
+### Preset & Config
+- [ ] **PRE-01**: Preset loads from `~/.config/mtmr/items.json` in MTMR-compatible schema (type, title, width, align, refreshInterval, actions)
+- [ ] **PRE-02**: Unknown item types are logged and skipped without failing the whole preset
+- [ ] **PRE-03**: A sensible default preset (esc, media, volume, brightness, clock, battery) ships with the project
+
+### Packaging & Ops
+- [ ] **PKG-01**: Installs as a systemd user service with `Conflicts=tiny-dfr.service`
+- [ ] **PKG-02**: Daemon exits with a clear error message when no Touch Bar display is found
+
+## v2 Requirements (deferred)
+
+- currency / weather / network / upnext(calendar) widgets
+- dock app-switcher widget
+- Pomodoro widget
+- Multi-finger swipe gestures
+- Preset hot-reload
+- GUI preset editor (MTMR Designer parity)
+
+## Out of Scope
+
+- AppleScript plugins — no macOS; shell scripts are the equivalent
+- Mac-specific plugins (yandexWeather, dnd, darkMode, nightShift, inputsource)
+- Sparkle auto-update framework — Linux packaging instead
+- Non-T2 (2016/2017) MacBook Touch Bar support
+
+## Traceability (filled by roadmap)
+
+| Requirement | Phase |
+|-------------|-------|
+| (pending) | |
+
+---
+*Created: 2026-09-26*
