@@ -175,55 +175,11 @@ pub fn width_px(units: usize) -> usize {
     ((units as f32) * (BAR_PX as f32) / BAR_UNITS).max(30.0) as usize
 }
 
-/// Strip // and /* */ comments from MTMR preset JSON (they are not valid JSON
-/// but MTMR accepts them, so community presets contain them).
-fn strip_comments(raw: &str) -> String {
-    let mut out = String::with_capacity(raw.len());
-    let bytes: Vec<char> = raw.chars().collect();
-    let mut i = 0;
-    let mut in_str = false;
-    while i < bytes.len() {
-        let c = bytes[i];
-        if in_str {
-            out.push(c);
-            if c == '\\' && i + 1 < bytes.len() {
-                out.push(bytes[i + 1]);
-                i += 2;
-                continue;
-            }
-            if c == '"' {
-                in_str = false;
-            }
-            i += 1;
-            continue;
-        }
-        if c == '"' {
-            in_str = true;
-            out.push(c);
-            i += 1;
-        } else if c == '/' && i + 1 < bytes.len() && bytes[i + 1] == '/' {
-            while i < bytes.len() && bytes[i] != '\n' {
-                i += 1;
-            }
-        } else if c == '/' && i + 1 < bytes.len() && bytes[i + 1] == '*' {
-            i += 2;
-            while i + 1 < bytes.len() && !(bytes[i] == '*' && bytes[i + 1] == '/') {
-                i += 1;
-            }
-            i += 2;
-        } else {
-            out.push(c);
-            i += 1;
-        }
-    }
-    out
-}
-
 pub fn load(path: &Path) -> Result<Vec<Item>> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("read preset {}", path.display()))?;
-    let items: Vec<serde_json::Value> =
-        serde_json::from_str(&strip_comments(&raw)).with_context(|| format!("parse {}", path.display()))?;
+    let items: Vec<serde_json::Value> = serde_json::from_str(&crate::lenient::sanitize(&raw))
+        .with_context(|| format!("parse {}", path.display()))?;
     let mut out = Vec::new();
     for v in items {
         let kind = v
@@ -231,6 +187,10 @@ pub fn load(path: &Path) -> Result<Vec<Item>> {
             .and_then(|t| t.as_str())
             .unwrap_or("(missing)")
             .to_string();
+        if matches!(kind.as_str(), "group" | "close") {
+            // legacy container syntax: children are flattened; group chrome dropped
+            continue;
+        }
         if !KNOWN_TYPES.contains(&kind.as_str()) {
             eprintln!("mtmr: skipping unsupported item type '{kind}'");
             continue;

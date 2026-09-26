@@ -28,7 +28,7 @@
 ### Preset & Config
 - [x] **PRE-01**: Preset loads from `~/.config/mtmr/items.json` in MTMR-compatible schema (type, title, width, align, refreshInterval, actions)
 - [x] **PRE-02**: Unknown item types are logged and skipped without failing the whole preset
-- [ ] **PRE-03**: A sensible default preset (esc, media, volume, brightness, clock, battery) ships with the project
+- [x] **PRE-03**: A sensible default preset (esc, media, volume, brightness, clock, battery) ships with the project
 
 ### Packaging & Ops
 - [ ] **PKG-01**: Installs as a systemd user service with `Conflicts=tiny-dfr.service`

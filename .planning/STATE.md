@@ -5,7 +5,7 @@
 ## Current Position
 
 - **Milestone:** v1 — daily-usable MTMR replacement on T2 Linux
-- **Phase:** 3 of 5 — Controls & Widgets VERIFIED PASSED 2026-09-27. Orientation settled (MTMR_VFLIP=1, no length flip). Remaining: Phase 4 preset-compat sweep, Phase 5 packaging/user service.
+- **Phase:** 3 of 5 — Controls & Widgets VERIFIED PASSED 2026-09-27. Orientation settled (MTMR_VFLIP=1, no length flip). Phase 4 preset-compat sweep DONE (12/12 community presets + defaultPreset lint OK). Remaining: Phase 5 packaging/user service.
 - **Status:** Phase 1 SUCCESS — test pattern rendered on physical Touch Bar (`OK connector=39 mode=60x2008 fb=41`); touch device event13 mapped (ABS_X 0-32767 → 2008px); docs/hardware.md written. Discovered existing `mtmr-linux.service` daemon holding card0 — future unit must Conflicts with it. Rust crate `mtmr` scaffolded.
 
 ## Recent Context

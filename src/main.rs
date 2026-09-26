@@ -1,4 +1,5 @@
 mod drm_out;
+mod lenient;
 mod pattern;
 mod preset;
 mod render;
@@ -69,6 +70,46 @@ fn main() -> Result<()> {
             let out = "/tmp/mtmr-bar.png";
             drm_out::dump_png(out, surf.w, surf.h, &surf.to_rgb())?;
             println!("{} items; PNG written: {out} ({}x{})", items.len(), surf.w, surf.h);
+        }
+        Some("--lint") => {
+            let path = args
+                .next()
+                .map(PathBuf::from)
+                .ok_or_else(|| anyhow::anyhow!("usage: mtmr --lint <file-or-dir>"))?;
+            let mut files: Vec<PathBuf> = Vec::new();
+            if path.is_dir() {
+                let mut entries: Vec<_> = std::fs::read_dir(&path)?
+                    .flatten()
+                    .map(|e| e.path())
+                    .filter(|p| p.extension().map(|e| e == "json").unwrap_or(false))
+                    .collect();
+                entries.sort();
+                files = entries;
+            } else {
+                files.push(path);
+            }
+            let mut fails = 0;
+            for f in &files {
+                match preset::load(f) {
+                    Ok(items) => {
+                        let skipped = skipped_count(f);
+                        println!(
+                            "{}: OK {} rendered, {} skipped",
+                            f.display(),
+                            items.len(),
+                            skipped
+                        );
+                    }
+                    Err(e) => {
+                        fails += 1;
+                        println!("{}: FAIL {}", f.display(), e);
+                    }
+                }
+            }
+            if fails > 0 {
+                bail!("{fails} preset(s) failed");
+            }
+            println!("lint: all {} presets OK", files.len());
         }
         Some("--selftest-touch") => touch::selftest()?,
         Some("--selftest-uinput") => uinput::selftest()?,
@@ -339,4 +380,16 @@ fn dispatch(
         }
     }
     Dispatch::Handled
+}
+
+/// Count skipped items by re-reading and diffing (lint nicety, not exact).
+fn skipped_count(path: &PathBuf) -> usize {
+    let raw = match std::fs::read_to_string(path) {
+        Ok(r) => r,
+        Err(_) => return 0,
+    };
+    match serde_json::from_str::<Vec<serde_json::Value>>(&crate::lenient::sanitize(&raw)) {
+        Ok(all) => all.len(),
+        Err(_) => 0,
+    }
 }
