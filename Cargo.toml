@@ -1,0 +1,10 @@
+[package]
+name = "mtmr"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+drm = "0.15.0"
+drm-fourcc = "2.2.0"
+png = "0.18.1"
