@@ -200,6 +200,22 @@ enum Dispatch {
     Exit,
 }
 
+fn builtin_keycode(kind: &str) -> Option<u16> {
+    Some(match kind {
+        "escape" => 1,
+        "previous" => 165,
+        "play" => 164,
+        "next" => 163,
+        "volumeUp" => 115,
+        "volumeDown" => 114,
+        "mute" => 113,
+        "brightnessUp" => 225,
+        "brightnessDown" => 224,
+        "displaySleep" => 142,
+        _ => return None,
+    })
+}
+
 fn dispatch(
     item: &preset::Item,
     trigger: &str,
@@ -207,6 +223,22 @@ fn dispatch(
 ) -> Dispatch {
     if item.kind == "exitTouchbar" {
         return Dispatch::Exit;
+    }
+    if item.actions.is_empty() {
+        if let Some(code) = builtin_keycode(&item.kind) {
+            if let Some(inj) = injector {
+                let _ = inj.inject(code);
+            }
+            return Dispatch::Handled;
+        }
+        if item.kind == "shellScriptTitledButton" {
+            if let Some(src) = &item.source {
+                if let Some(inline) = &src.inline {
+                    let _ = std::process::Command::new("sh").arg("-c").arg(inline).spawn();
+                }
+            }
+            return Dispatch::Handled;
+        }
     }
     let action = item
         .actions

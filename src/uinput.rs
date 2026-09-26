@@ -10,6 +10,9 @@ const PREVIOUSSONG: u16 = 165;
 const MUTE: u16 = 113;
 const VOLUMEDOWN: u16 = 114;
 const VOLUMEUP: u16 = 115;
+const BRIGHTNESSDOWN: u16 = 224;
+const BRIGHTNESSUP: u16 = 225;
+const KEY_SLEEP: u16 = 142;
 
 pub fn named_keycode(name: &str) -> Option<u16> {
     Some(match name.to_ascii_lowercase().as_str() {
@@ -20,6 +23,9 @@ pub fn named_keycode(name: &str) -> Option<u16> {
         "mute" => MUTE,
         "volumedown" => VOLUMEDOWN,
         "volumeup" => VOLUMEUP,
+        "brightnessdown" => BRIGHTNESSDOWN,
+        "brightnessup" => BRIGHTNESSUP,
+        "sleep" | "displaysleep" => KEY_SLEEP,
         _ => return None,
     })
 }
@@ -34,6 +40,7 @@ impl KeyInjector {
         let mut keys = AttributeSet::new();
         for c in [
             ESC, NEXTSONG, PLAYPAUSE, PREVIOUSSONG, MUTE, VOLUMEDOWN, VOLUMEUP,
+            BRIGHTNESSDOWN, BRIGHTNESSUP, KEY_SLEEP,
         ] {
             keys.insert(KeyCode(c));
         }

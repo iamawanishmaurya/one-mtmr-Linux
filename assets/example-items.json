@@ -1,28 +1,23 @@
+// MTMR-Linux preset — MTMR-compatible units (full bar = 1080 units)
 [
-  { "type": "escape", "title": "esc", "width": 90, "align": "left",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 53 }] },
-
-  { "type": "staticButton", "title": "Term", "width": 110, "align": "left",
+  { "type": "escape", "title": "esc", "width": 64, "align": "left" },
+  { "type": "staticButton", "title": "Term", "width": 80, "align": "left",
     "actions": [{ "trigger": "singleTap", "action": "command", "command": "ghostty &" }] },
-  { "type": "staticButton", "title": "Files", "width": 110, "align": "left",
+  { "type": "staticButton", "title": "Files", "width": 80, "align": "left",
     "actions": [{ "trigger": "singleTap", "action": "command", "command": "nautilus &" }] },
 
-  { "type": "previous", "width": 80, "align": "center",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 165 }] },
-  { "type": "play", "width": 80, "align": "center",
+  { "type": "previous", "width": 40, "align": "center" },
+  { "type": "play", "width": 40, "align": "center",
     "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 164 },
                 { "trigger": "longTap", "action": "keycode", "keycode": 163 }] },
-  { "type": "next", "width": 80, "align": "center",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 163 }] },
+  { "type": "next", "width": 40, "align": "center" },
 
-  { "type": "mute", "title": "volX", "width": 90, "align": "right",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 113 }] },
-  { "type": "volumeDown", "title": "vol-", "width": 90, "align": "right",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 114 }] },
-  { "type": "volumeUp", "title": "vol+", "width": 90, "align": "right",
-    "actions": [{ "trigger": "singleTap", "action": "keycode", "keycode": 115 }] },
-
-  { "type": "staticButton", "title": "Lock", "width": 100, "align": "right",
+  { "type": "mute", "width": 36, "align": "right" },
+  { "type": "volumeDown", "width": 36, "align": "right" },
+  { "type": "volumeUp", "width": 36, "align": "right" },
+  { "type": "brightnessDown", "width": 36, "align": "right" },
+  { "type": "brightnessUp", "width": 36, "align": "right" },
+  { "type": "staticButton", "title": "Lock", "width": 60, "align": "right",
     "actions": [{ "trigger": "singleTap", "action": "command", "command": "loginctl lock-session" }] },
-  { "type": "exitTouchbar", "title": "X", "width": 70, "align": "right" }
+  { "type": "exitTouchbar", "title": "X", "width": 36, "align": "right" }
 ]

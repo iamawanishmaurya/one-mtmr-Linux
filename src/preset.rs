@@ -26,7 +26,7 @@ pub struct Item {
 }
 
 fn default_width() -> usize {
-    100
+    64
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Default)]
@@ -101,13 +101,70 @@ pub const KNOWN_TYPES: &[&str] = &[
     "mute",
     "brightnessDown",
     "brightnessUp",
+    "illuminationDown",
+    "illuminationUp",
+    "displaySleep",
+    "shellScriptTitledButton",
 ];
+
+/// MTMR presets specify widths in macOS Touch Bar units (full bar = 1080);
+/// our bar is 2008 px long, so scale.
+pub const BAR_UNITS: f32 = 1080.0;
+pub const BAR_PX: usize = 2008;
+
+pub fn width_px(units: usize) -> usize {
+    ((units as f32) * (BAR_PX as f32) / BAR_UNITS).max(30.0) as usize
+}
+
+/// Strip // and /* */ comments from MTMR preset JSON (they are not valid JSON
+/// but MTMR accepts them, so community presets contain them).
+fn strip_comments(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let bytes: Vec<char> = raw.chars().collect();
+    let mut i = 0;
+    let mut in_str = false;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if in_str {
+            out.push(c);
+            if c == '\\' && i + 1 < bytes.len() {
+                out.push(bytes[i + 1]);
+                i += 2;
+                continue;
+            }
+            if c == '"' {
+                in_str = false;
+            }
+            i += 1;
+            continue;
+        }
+        if c == '"' {
+            in_str = true;
+            out.push(c);
+            i += 1;
+        } else if c == '/' && i + 1 < bytes.len() && bytes[i + 1] == '/' {
+            while i < bytes.len() && bytes[i] != '\n' {
+                i += 1;
+            }
+        } else if c == '/' && i + 1 < bytes.len() && bytes[i + 1] == '*' {
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == '*' && bytes[i + 1] == '/') {
+                i += 1;
+            }
+            i += 2;
+        } else {
+            out.push(c);
+            i += 1;
+        }
+    }
+    out
+}
 
 pub fn load(path: &Path) -> Result<Vec<Item>> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("read preset {}", path.display()))?;
     let items: Vec<serde_json::Value> =
-        serde_json::from_str(&raw).with_context(|| format!("parse {}", path.display()))?;
+        serde_json::from_str(&strip_comments(&raw)).with_context(|| format!("parse {}", path.display()))?;
     let mut out = Vec::new();
     for v in items {
         let kind = v
@@ -124,6 +181,7 @@ pub fn load(path: &Path) -> Result<Vec<Item>> {
                 if it.title.is_empty() {
                     it.title = default_title(&it.kind);
                 }
+                it.width = width_px(it.width);
                 out.push(it);
             }
             Err(e) => eprintln!("mtmr: skipping malformed '{kind}' item: {e}"),
@@ -141,6 +199,9 @@ fn default_title(kind: &str) -> String {
         "previous" => "|<".into(),
         "play" => ">||".into(),
         "next" => ">>".into(),
+        "illuminationUp" => "+k".into(),
+        "illuminationDown" => "-k".into(),
+        "displaySleep" => "zZ".into(),
         "volumeUp" => "+".into(),
         "volumeDown" => "-".into(),
         "mute" => "M".into(),
@@ -174,7 +235,8 @@ mod tests {
         assert_eq!(items[0].kind, "escape");
         assert_eq!(items[0].title, "esc");
         assert_eq!(items[1].kind, "staticButton");
-        assert_eq!(items[1].width, 80);
+        // MTMR units are scaled to px: 80 units -> 80 * 2008 / 1080 = 148
+        assert_eq!(items[1].width, 148);
         assert_eq!(
             items[1].actions[0].keycode,
             Some(Keycode::Code(53))

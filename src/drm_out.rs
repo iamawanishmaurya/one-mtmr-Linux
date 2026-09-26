@@ -299,10 +299,12 @@ impl DrmBackend {
     }
 
     /// Blit a landscape surface (x = bar length, y = thickness) into the back
-    /// buffer and page-flip it to the panel.
+    /// buffer and page-flip it to the panel. MTMR_FLIP=1 mirrors the length
+    /// axis (fixes reversed button order on this panel's orientation).
     pub fn present(&mut self, land: &crate::surface::Surface) -> Result<()> {
         let (w, h) = self.mode_size();
         let stride = self.stride_px();
+        let flip = std::env::var("MTMR_FLIP").map(|v| v == "1").unwrap_or(false);
         {
             let mut map = self.map()?;
             let buf = map.as_mut();
@@ -310,8 +312,11 @@ impl DrmBackend {
             // drm:  x = thickness, y = length
             for l in 0..h {
                 for t in 0..w {
-                    let src = (t * land.stride + l) * 4;
-                    let dst = (l * stride + t) * 4;
+                    let (src, dst) = if flip {
+                        ((t * land.stride + l) * 4, ((h - 1 - l) * stride + t) * 4)
+                    } else {
+                        ((t * land.stride + l) * 4, (l * stride + t) * 4)
+                    };
                     buf[dst] = land.buf[src];
                     buf[dst + 1] = land.buf[src + 1];
                     buf[dst + 2] = land.buf[src + 2];
