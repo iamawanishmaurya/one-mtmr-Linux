@@ -43,7 +43,7 @@ pub fn set_brightness_pct(pct: u8) -> Result<()> {
 
 /// Keyboard illumination step (max 14660 on this machine) by ±max/10.
 pub fn step_illumination(dir: i64) -> Result<()> {
-    let base = "/sys/class/leds/white:kbd_backlight";
+    let base = "/sys/class/leds/:white:kbd_backlight";
     let max: u64 = std::fs::read_to_string(format!("{base}/max_brightness"))
         .context("read kbd max")?
         .trim()
@@ -157,24 +157,24 @@ mod tests {
     #[ignore = "requires root + hardware; run: sudo cargo test --release -- --ignored"]
     fn illum_step_math_bound() {
         // verify stepping up is capped (indirect: call is safe, value within max)
-        let before = std::fs::read_to_string("/sys/class/leds/white:kbd_backlight/brightness")
+        let before = std::fs::read_to_string("/sys/class/leds/:white:kbd_backlight/brightness")
             .unwrap()
             .trim()
             .parse::<u64>()
             .unwrap();
         let _ = step_illumination(1);
-        let after = std::fs::read_to_string("/sys/class/leds/white:kbd_backlight/brightness")
+        let after = std::fs::read_to_string("/sys/class/leds/:white:kbd_backlight/brightness")
             .unwrap()
             .trim()
             .parse::<u64>()
             .unwrap();
-        let max: u64 = std::fs::read_to_string("/sys/class/leds/white:kbd_backlight/max_brightness")
+        let max: u64 = std::fs::read_to_string("/sys/class/leds/:white:kbd_backlight/max_brightness")
             .unwrap()
             .trim()
             .parse()
             .unwrap();
         assert!(after <= max);
         // restore
-        std::fs::write("/sys/class/leds/white:kbd_backlight/brightness", format!("{before}")).unwrap();
+        std::fs::write("/sys/class/leds/:white:kbd_backlight/brightness", format!("{before}")).unwrap();
     }
 }

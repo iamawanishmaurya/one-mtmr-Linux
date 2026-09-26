@@ -39,7 +39,7 @@ Coordinate mapping: `x_px = ev_x * 2008 / 32767` along the mode's 2008 axis; tha
 
 - `/sys/class/backlight/appletb_backlight/` — max_brightness **2** (Touch Bar / keyboard-mode brightness, via `hid_appletb_bl` at `/sys/bus/hid/drivers/hid-appletb-bl/0003:05AC:8102.0007`)
 - `/sys/class/backlight/intel_backlight/` — max_brightness 17777 (main display)
-- `/sys/class/leds/white:kbd_backlight/` — keyboard backlight LED
+- `/sys/class/leds/:white:kbd_backlight/` — keyboard backlight LED
 
 ## Phase 2 requirements surfaced by this spike
 
