@@ -154,6 +154,14 @@ fn main() -> Result<()> {
 
 /// The Phase-2 live loop: render the preset, consume touch, dispatch actions.
 fn live_loop(items: Vec<preset::Item>) -> Result<()> {
+    // backlight on: the panel can be dark after a driver rebind (looks like a
+    // dead bar), and a dark panel + dim-guard silently eats taps (old lesson)
+    if let Ok(max) = std::fs::read_to_string("/sys/class/backlight/appletb_backlight/max_brightness") {
+        let _ = std::fs::write(
+            "/sys/class/backlight/appletb_backlight/brightness",
+            max.trim(),
+        );
+    }
     let font = load_font()?;
     let rects = render::layout(&items, H);
     let mut mutated = items.clone();
