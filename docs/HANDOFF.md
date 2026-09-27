@@ -1,5 +1,10 @@
 # HANDOFF — read this first in a new session
 
+> **START NEW SESSIONS FROM `/home/Astra/opencode/touchbar/react-drm-fork/`** —
+> that is the primary working folder (the running bar's fork). All work
+> happens there: edit → `./deploy.sh` → commit/push. This mtmr folder is only
+> the fallback daemon + planning docs.
+
 If a previous AI session ran out of context or ZCode was restarted, everything
 needed to continue Touch Bar work is in this repo and the pointers below.
 
